@@ -27,13 +27,22 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Build demo
-        run: cd packages/phaser-demo && bun run build
+      - name: Build demos
+        run: |
+          cd packages/phaser-demo && bun run build
+          cd ../slot-demo && bun run build
+
+      - name: Prepare pages artifact (root + /slot)
+        run: |
+          rm -rf .pages-dist
+          mkdir -p .pages-dist/slot
+          cp -R packages/phaser-demo/dist/* .pages-dist/
+          cp -R packages/slot-demo/dist/* .pages-dist/slot/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/phaser-demo/dist
+          path: .pages-dist
 
   deploy:
     environment:
