@@ -14,6 +14,8 @@
   },
   "scripts": {
     "demo:dev": "cd packages/phaser-demo && bun run dev",
-    "demo:build": "cd packages/phaser-demo && bun run build"
+    "demo:build": "cd packages/phaser-demo && bun run build",
+    "slot:dev": "cd packages/slot-demo && bun run dev",
+    "slot:build": "cd packages/slot-demo && bun run build"
   }
 }
