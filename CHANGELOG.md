@@ -38,3 +38,12 @@
 
 ### Changed
 - `STATUS.md` 勾选“方法级签名索引”完成项
+
+
+## 2026-02-15 (parameter update)
+
+### Added
+- `skills/phaser-developer/references/parameter-reference.md`（参数类型与默认值参考）
+
+### Changed
+- `STATUS.md` 勾选“参数类型表（可选值/默认值）”完成项
