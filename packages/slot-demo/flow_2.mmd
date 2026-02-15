@@ -1,0 +1,10 @@
+flowchart LR
+  A[React App\nHUD + Bet + Spin Button] --> B[SlotGameView\nReact-Phaser bridge]
+  B --> C[SlotScene\nGame logic]
+
+  C --> C1[create\nlayout + reels + init]
+  C --> C2[spin\ndeduct -> animate -> stop]
+  C --> C3[payout\n5-line evaluate]
+
+  C --> D[Callbacks]
+  D --> A

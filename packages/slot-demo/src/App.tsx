@@ -53,7 +53,7 @@ export function App() {
         <button disabled={spinning} onClick={() => setAutoLeft(10)}>自动x10</button>
       </div>
 
-      <div style={{ position: 'fixed', right: 10, bottom: 8, zIndex: 10, color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>v0.2.1-slot-polish</div>
+      <div style={{ position: 'fixed', right: 10, bottom: 8, zIndex: 10, color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>v0.3.0-product-polish</div>
     </>
   );
 }

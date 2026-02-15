@@ -1,0 +1,18 @@
+flowchart TD
+  A[Click SPIN] --> B[Read State: balance bet spinning]
+  B --> C{Valid?\nnot spinning & balance>=bet}
+  C -- No --> X[Ignore / return]
+  C -- Yes --> D[Deduct bet\nbalance -= bet]
+  D --> E[Set spinning=true\nDisable button]
+  E --> F[Rolling animation\nupdate 3x3 symbols]
+  F --> G[Stop reels sequentially\ncol1 -> col2 -> col3]
+  G --> H[Build finalGrid]
+  H --> I[Evaluate 5 lines\nmid top bottom diag\\ diag/]
+  I --> J[Count hits]
+  J --> K[Compute win]
+  K --> L[balance += win\nUpdate HUD]
+  L --> M{win>0?}
+  M -- Yes --> N[FX: flash/highlight/pop text]
+  M -- No --> O[Normal end]
+  N --> P[spinning=false\nEnable button]
+  O --> P

@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+<style>body{margin:20px;font-family:Arial} .mermaid{max-width:1400px}</style></head>
+<body>
+<h2>Spin Runtime Flow</h2>
+<div class="mermaid">
+flowchart TD
+  A[Click SPIN] --> B[Read State: balance bet spinning]
+  B --> C{Valid?\nnot spinning & balance>=bet}
+  C -- No --> X[Ignore / return]
+  C -- Yes --> D[Deduct bet\nbalance -= bet]
+  D --> E[Set spinning=true\nDisable button]
+  E --> F[Rolling animation\nupdate 3x3 symbols]
+  F --> G[Stop reels sequentially\ncol1 -> col2 -> col3]
+  G --> H[Build finalGrid]
+  H --> I[Evaluate 5 lines\nmid top bottom diag\\ diag/]
+  I --> J[Count hits]
+  J --> K[Compute win]
+  K --> L[balance += win\nUpdate HUD]
+  L --> M{win>0?}
+  M -- Yes --> N[FX: flash/highlight/pop text]
+  M -- No --> O[Normal end]
+  N --> P[spinning=false\nEnable button]
+  O --> P
+</div>
+<h2>Architecture Flow</h2>
+<div class="mermaid">
+flowchart LR
+  A[React App\nHUD + Bet + Spin Button] --> B[SlotGameView\nReact-Phaser bridge]
+  B --> C[SlotScene\nGame logic]
+
+  C --> C1[create\nlayout + reels + init]
+  C --> C2[spin\ndeduct -> animate -> stop]
+  C --> C3[payout\n5-line evaluate]
+
+  C --> D[Callbacks]
+  D --> A
+</div>
+</body></html>
