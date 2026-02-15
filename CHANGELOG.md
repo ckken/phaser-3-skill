@@ -104,3 +104,12 @@
 - `packages/phaser-demo` 改为移动端友好 HUD（精简顶部信息 + 底部触控按键）
 - 页面仅保留小字版本号 `v0.3.0-mobile`
 - Demo 场景升级：平台布局、视差背景、粒子与音效反馈、触控控制接入
+
+
+## 2026-02-15 (mobile portrait adaptation)
+
+### Changed
+- 禁用双指缩放与页面手势（viewport + touch/gesture prevent）
+- 根据横竖屏自动选择画布比例（横屏 960x540 / 竖屏 540x960）
+- 竖屏关卡布局重排（平台与跳跃参数优化）
+- 保留小字版本号，HUD 精简

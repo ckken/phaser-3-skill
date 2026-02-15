@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import type { MutableRefObject } from 'react';
 import type { ControlState } from '../GameView';
 
+type Viewport = { width: number; height: number; portrait: boolean };
+
 export class MainScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -12,49 +14,63 @@ export class MainScene extends Phaser.Scene {
 
   constructor(
     private onScoreChange: (score: number) => void,
-    private controlsRef: MutableRefObject<ControlState>
+    private controlsRef: MutableRefObject<ControlState>,
+    private viewport: Viewport
   ) {
     super('MainScene');
   }
 
   create(): void {
+    const W = this.viewport.width;
+    const H = this.viewport.height;
+
+    const groundH = Math.max(36, Math.round(H * 0.07));
+    const platformW = this.viewport.portrait ? Math.round(W * 0.28) : Math.round(W * 0.2);
+    const platformH = Math.max(16, Math.round(H * 0.025));
+    const playerSize = this.viewport.portrait ? 52 : 58;
+
     const g = this.add.graphics();
-    g.fillStyle(0x121826, 1).fillRect(0, 0, 960, 540).generateTexture('bg', 960, 540);
-    g.clear().fillStyle(0x2a3652, 1).fillRect(0, 0, 220, 120).generateTexture('hill', 220, 120);
-    g.clear().fillStyle(0x7ac943, 1).fillRect(0, 0, 64, 64).generateTexture('player', 64, 64);
-    g.clear().fillStyle(0x4b6584, 1).fillRect(0, 0, 960, 40).generateTexture('ground', 960, 40);
-    g.clear().fillStyle(0x5f7599, 1).fillRect(0, 0, 180, 20).generateTexture('platform', 180, 20);
+    g.fillStyle(0x121826, 1).fillRect(0, 0, W, H).generateTexture('bg', W, H);
+    g.clear().fillStyle(0x2a3652, 1).fillRect(0, 0, Math.round(W * 0.35), Math.round(H * 0.16)).generateTexture('hill', Math.round(W * 0.35), Math.round(H * 0.16));
+    g.clear().fillStyle(0x7ac943, 1).fillRect(0, 0, playerSize, playerSize).generateTexture('player', playerSize, playerSize);
+    g.clear().fillStyle(0x4b6584, 1).fillRect(0, 0, W, groundH).generateTexture('ground', W, groundH);
+    g.clear().fillStyle(0x5f7599, 1).fillRect(0, 0, platformW, platformH).generateTexture('platform', platformW, platformH);
     g.clear().fillStyle(0xffc857, 1).fillCircle(12, 12, 12).generateTexture('coin', 24, 24);
     g.clear().fillStyle(0xffffff, 1).fillCircle(3, 3, 3).generateTexture('spark', 6, 6);
     g.destroy();
 
-    this.add.image(480, 270, 'bg');
-    const hills = this.add.tileSprite(480, 430, 960, 140, 'hill').setAlpha(0.35);
+    this.add.image(W / 2, H / 2, 'bg');
+    const hills = this.add.tileSprite(W / 2, H - groundH - Math.round(H * 0.08), W, Math.round(H * 0.18), 'hill').setAlpha(0.35);
 
-    const ground = this.physics.add.staticImage(480, 520, 'ground');
+    const ground = this.physics.add.staticImage(W / 2, H - groundH / 2, 'ground');
     ground.refreshBody();
 
-    const platform1 = this.physics.add.staticImage(300, 420, 'platform');
-    const platform2 = this.physics.add.staticImage(660, 340, 'platform');
-    const platform3 = this.physics.add.staticImage(820, 250, 'platform');
-    platform1.refreshBody();
-    platform2.refreshBody();
-    platform3.refreshBody();
+    const pYs = this.viewport.portrait
+      ? [Math.round(H * 0.72), Math.round(H * 0.58), Math.round(H * 0.44), Math.round(H * 0.32)]
+      : [Math.round(H * 0.78), Math.round(H * 0.63), Math.round(H * 0.5)];
+    const pXs = this.viewport.portrait
+      ? [Math.round(W * 0.23), Math.round(W * 0.72), Math.round(W * 0.35), Math.round(W * 0.78)]
+      : [Math.round(W * 0.28), Math.round(W * 0.66), Math.round(W * 0.84)];
+
+    const platforms = pXs.map((x, i) => {
+      const p = this.physics.add.staticImage(x, pYs[i], 'platform');
+      p.refreshBody();
+      return p;
+    });
 
     this.player = this.physics.add
-      .sprite(120, 120, 'player')
+      .sprite(Math.round(W * 0.15), Math.round(H * 0.2), 'player')
       .setCollideWorldBounds(true)
       .setBounce(0.06)
-      .setDragX(1200);
+      .setDragX(1200)
+      .setMaxVelocity(340, 900);
 
     this.physics.add.collider(this.player, ground);
-    this.physics.add.collider(this.player, platform1);
-    this.physics.add.collider(this.player, platform2);
-    this.physics.add.collider(this.player, platform3);
+    platforms.forEach((p) => this.physics.add.collider(this.player, p));
 
     this.tweens.add({ targets: this.player, scaleX: 1.04, scaleY: 0.96, yoyo: true, repeat: -1, duration: 420 });
 
-    this.coin = this.physics.add.staticImage(780, 220, 'coin');
+    this.coin = this.physics.add.staticImage(Math.round(W * 0.82), Math.round(H * 0.22), 'coin');
     this.tweens.add({ targets: this.coin, angle: 360, duration: 1100, repeat: -1, ease: 'Linear' });
 
     this.physics.add.overlap(this.player, this.coin, () => this.collectCoin());
@@ -66,12 +82,15 @@ export class MainScene extends Phaser.Scene {
       delay: 16,
       loop: true,
       callback: () => {
-        hills.tilePositionX += 0.3;
+        hills.tilePositionX += this.viewport.portrait ? 0.18 : 0.3;
       }
     });
   }
 
   private collectCoin(): void {
+    const W = this.viewport.width;
+    const H = this.viewport.height;
+
     this.score += 10;
     this.onScoreChange(this.score);
 
@@ -88,7 +107,7 @@ export class MainScene extends Phaser.Scene {
 
     this.playTone(660, 0.08, 'triangle');
 
-    this.coin.setPosition(Phaser.Math.Between(120, 900), Phaser.Math.Between(120, 470));
+    this.coin.setPosition(Phaser.Math.Between(Math.round(W * 0.12), Math.round(W * 0.9)), Phaser.Math.Between(Math.round(H * 0.14), Math.round(H * 0.82)));
     this.coin.refreshBody();
   }
 
@@ -119,11 +138,14 @@ export class MainScene extends Phaser.Scene {
     const goRight = this.cursors.right.isDown || ctl.right;
     const wantJump = this.cursors.up.isDown || ctl.jump;
 
+    const speed = this.viewport.portrait ? 220 : 250;
+    const jumpV = this.viewport.portrait ? -520 : -450;
+
     if (goLeft) {
-      this.player.setVelocityX(-250);
+      this.player.setVelocityX(-speed);
       this.player.setTint(0x8fd3ff);
     } else if (goRight) {
-      this.player.setVelocityX(250);
+      this.player.setVelocityX(speed);
       this.player.setTint(0x8fd3ff);
     } else {
       this.player.setVelocityX(0);
@@ -131,7 +153,7 @@ export class MainScene extends Phaser.Scene {
     }
 
     if (wantJump && onGround && !this.jumpPressed) {
-      this.player.setVelocityY(-450);
+      this.player.setVelocityY(jumpV);
       this.playTone(280, 0.06, 'square');
     }
     this.jumpPressed = wantJump;

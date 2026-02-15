@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { GameView, type ControlState } from './GameView';
 
 const VERSION = 'v0.3.0-mobile';
@@ -23,6 +23,25 @@ export function App() {
   const controls: ControlState = useMemo(() => ({ left, right, jump }), [left, right, jump]);
   const controlsRef = useRef<ControlState>(controls);
   controlsRef.current = controls;
+
+  useEffect(() => {
+    const prevent = (e: Event) => e.preventDefault();
+    document.addEventListener('gesturestart', prevent as EventListener, { passive: false });
+    document.addEventListener('gesturechange', prevent as EventListener, { passive: false });
+    document.addEventListener('gestureend', prevent as EventListener, { passive: false });
+
+    const touchMove = (e: TouchEvent) => {
+      if (e.touches.length > 1) e.preventDefault();
+    };
+    document.addEventListener('touchmove', touchMove, { passive: false });
+
+    return () => {
+      document.removeEventListener('gesturestart', prevent as EventListener);
+      document.removeEventListener('gesturechange', prevent as EventListener);
+      document.removeEventListener('gestureend', prevent as EventListener);
+      document.removeEventListener('touchmove', touchMove);
+    };
+  }, []);
 
   return (
     <>
