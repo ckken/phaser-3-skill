@@ -1,6 +1,6 @@
 # Phaser Skill Status
 
-更新时间: 2026-02-15 14:07:40 
+更新时间: 2026-02-15 14:24:36
 
 ## 文档统计
 
@@ -12,15 +12,15 @@
 
 | 文件 | 字节 | KB |
 |---|---:|---:|
-| phaser-developer/SKILL.md | 7115 | 6.95 |
-| phaser-developer/references/animation.md | 11266 | 11.00 |
-| phaser-developer/references/camera-audio.md | 9680 | 9.45 |
-| phaser-developer/references/core-architecture.md | 7148 | 6.98 |
-| phaser-developer/references/game-objects.md | 10663 | 10.41 |
-| phaser-developer/references/input.md | 10119 | 9.88 |
-| phaser-developer/references/patterns.md | 14270 | 13.94 |
-| phaser-developer/references/physics.md | 10144 | 9.91 |
-| phaser-developer/references/scene-api.md | 7550 | 7.37 |
+| skills/phaser-developer/SKILL.md | 7115 | 6.95 |
+| skills/phaser-developer/references/animation.md | 11266 | 11.00 |
+| skills/phaser-developer/references/camera-audio.md | 9680 | 9.45 |
+| skills/phaser-developer/references/core-architecture.md | 7148 | 6.98 |
+| skills/phaser-developer/references/game-objects.md | 10663 | 10.41 |
+| skills/phaser-developer/references/input.md | 10119 | 9.88 |
+| skills/phaser-developer/references/patterns.md | 14270 | 13.94 |
+| skills/phaser-developer/references/physics.md | 10144 | 9.91 |
+| skills/phaser-developer/references/scene-api.md | 7550 | 7.37 |
 
 ## 覆盖范围
 

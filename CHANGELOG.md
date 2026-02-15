@@ -22,5 +22,10 @@
   - `scripts/example_script.cjs`
   - `references/example_reference.md`
 
+### Changed (Structure)
+- 目录重构：从 `packages/phaser-skill/phaser-developer/` 迁移到项目根目录 `skills/phaser-developer/`
+- `STATUS.md` 与 `CHANGELOG.md` 提升到项目根目录，便于直接查看
+- `phaser-docs.md` 迁移到 `skills/phaser-docs.md`
+
 ### Notes
 - 当前策略：主文档做高密度索引，细节下沉 references，降低 token 消耗并提升可检索性。
