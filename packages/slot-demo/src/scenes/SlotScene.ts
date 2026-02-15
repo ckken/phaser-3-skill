@@ -10,6 +10,7 @@ export class SlotScene extends Phaser.Scene {
   private reelsSpinEvents: Phaser.Time.TimerEvent[] = [];
   private colsX = [170, 270, 370];
   private rowsY = [330, 430, 530];
+  private rowStep = 100;
 
   constructor(
     private onBalanceChange: (v: number) => void,
@@ -23,6 +24,7 @@ export class SlotScene extends Phaser.Scene {
 
   create() {
     this.add.rectangle(270, 430, 420, 360, 0x0b0f1a, 0.9).setStrokeStyle(2, 0xffffff, 0.15);
+    this.add.rectangle(270, 430, 406, 106, 0xffffff, 0.06).setStrokeStyle(2, 0x6ef2ff, 0.5);
 
     for (let c = 0; c < 3; c++) {
       this.reels[c] = [];
@@ -49,19 +51,33 @@ export class SlotScene extends Phaser.Scene {
 
   private startReelSpin(col: number) {
     const ev = this.time.addEvent({
-      delay: 75,
+      delay: 90,
       loop: true,
       callback: () => {
-        const a = this.reels[col][0].text;
-        const b = this.reels[col][1].text;
-        const c = this.reels[col][2].text;
-        this.reels[col][0].setText(this.randomSymbol());
-        this.reels[col][1].setText(a);
-        this.reels[col][2].setText(b || c);
+        // visually move symbols downward each tick
+        this.reels[col].forEach((t) => {
+          this.tweens.add({
+            targets: t,
+            y: t.y + this.rowStep,
+            duration: 80,
+            ease: 'Linear'
+          });
+        });
 
-        this.reels[col].forEach((t, i) => {
-          t.setScale(i === 1 ? 1.04 : 0.96);
-          t.setAlpha(i === 1 ? 1 : 0.75);
+        this.time.delayedCall(82, () => {
+          this.reels[col].forEach((t) => {
+            if (t.y > this.rowsY[2] + this.rowStep / 2) {
+              t.y = this.rowsY[0] - this.rowStep;
+              t.setText(this.randomSymbol());
+            }
+          });
+
+          // ensure center row remains visually highlighted
+          this.reels[col].forEach((t) => {
+            const d = Math.abs(t.y - this.rowsY[1]);
+            t.setScale(d < 16 ? 1.08 : 0.95);
+            t.setAlpha(d < 16 ? 1 : 0.72);
+          });
         });
       }
     });
@@ -99,8 +115,9 @@ export class SlotScene extends Phaser.Scene {
         this.reelsSpinEvents[col]?.destroy();
         for (let row = 0; row < 3; row++) {
           this.reels[col][row].setText(finalGrid[col][row]);
-          this.reels[col][row].setScale(row === 1 ? 1.06 : 0.98);
-          this.reels[col][row].setAlpha(row === 1 ? 1 : 0.82);
+          this.reels[col][row].setY(this.rowsY[row]);
+          this.reels[col][row].setScale(row === 1 ? 1.1 : 0.96);
+          this.reels[col][row].setAlpha(row === 1 ? 1 : 0.76);
         }
       });
     });
