@@ -55,3 +55,14 @@
 - 按 Bun workspace 结构回迁：`skills/phaser-developer` -> `packages/phaser-skill/phaser-developer`
 - `skills/phaser-docs.md` -> `packages/phaser-skill/phaser-docs.md`
 - 保留根目录 `skills/README.md` 作为兼容入口
+
+
+## 2026-02-15 (path policy fix)
+
+### Changed
+- Skill canonical path restored to root: `skills/phaser-developer/SKILL.MD`
+- Moved skill docs from `packages/phaser-skill/` back to `skills/`
+- `packages/` kept for runnable demo/workspace code only
+
+### Added
+- Root `AGENTS.md` with explicit path policy to avoid future regressions

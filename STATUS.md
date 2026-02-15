@@ -1,6 +1,6 @@
 # Phaser Skill Status
 
-更新时间: 2026-02-15 14:50:22
+更新时间: 2026-02-15 14:55:47
 
 ## 文档统计
 
@@ -12,16 +12,16 @@
 
 | 文件 | 字节 | KB |
 |---|---:|---:|
-| packages/phaser-skill/phaser-developer/references/animation.md | 11266 | 11.00 |
-| packages/phaser-skill/phaser-developer/references/api-signature-index.md | 6967 | 6.80 |
-| packages/phaser-skill/phaser-developer/references/camera-audio.md | 9680 | 9.45 |
-| packages/phaser-skill/phaser-developer/references/core-architecture.md | 7148 | 6.98 |
-| packages/phaser-skill/phaser-developer/references/game-objects.md | 10663 | 10.41 |
-| packages/phaser-skill/phaser-developer/references/input.md | 10119 | 9.88 |
-| packages/phaser-skill/phaser-developer/references/parameter-reference.md | 4364 | 4.26 |
-| packages/phaser-skill/phaser-developer/references/patterns.md | 14270 | 13.94 |
-| packages/phaser-skill/phaser-developer/references/physics.md | 10144 | 9.91 |
-| packages/phaser-skill/phaser-developer/references/scene-api.md | 7550 | 7.37 |
+| skills/phaser-developer/references/animation.md | 11266 | 11.00 |
+| skills/phaser-developer/references/api-signature-index.md | 6967 | 6.80 |
+| skills/phaser-developer/references/camera-audio.md | 9680 | 9.45 |
+| skills/phaser-developer/references/core-architecture.md | 7148 | 6.98 |
+| skills/phaser-developer/references/game-objects.md | 10663 | 10.41 |
+| skills/phaser-developer/references/input.md | 10119 | 9.88 |
+| skills/phaser-developer/references/parameter-reference.md | 4364 | 4.26 |
+| skills/phaser-developer/references/patterns.md | 14270 | 13.94 |
+| skills/phaser-developer/references/physics.md | 10144 | 9.91 |
+| skills/phaser-developer/references/scene-api.md | 7550 | 7.37 |
 
 ## 覆盖范围
 
