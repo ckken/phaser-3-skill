@@ -311,8 +311,14 @@ this.add.text(10, 10, '', { fontSize: '16px' })
 - [Phaser 3 示例](https://phaser.io/examples)
 - [Phaser 3 API](https://newdocs.phaser.io/docs/3.60.0)
 
-## 相关文件
+## 详细参考文档
 
-- `references/core-architecture.md` - 架构详解
-- `references/physics.md` - 物理系统详解
-- `references/patterns.md` - 更多游戏模式
+| 文档 | 内容 |
+|------|------|
+| `references/core-architecture.md` | Game 配置、场景系统、生命周期、插件、时间系统 |
+| `references/game-objects.md` | Image、Sprite、Text、Graphics、Container、Group、对象池 |
+| `references/physics.md` | Arcade 物理、Matter.js 物理、碰撞检测、约束 |
+| `references/input.md` | 键盘、鼠标、触摸、游戏手柄、拖拽 |
+| `references/animation.md` | 帧动画、补间动画、粒子系统 |
+| `references/camera-audio.md` | 相机控制、特效、音频播放、资源加载 |
+| `references/patterns.md` | 平台跳跃、射击、跑酷、RPG、消除、状态机 |
