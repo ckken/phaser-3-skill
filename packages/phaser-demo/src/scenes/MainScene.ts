@@ -9,6 +9,8 @@ export class MainScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private coin!: Phaser.Physics.Arcade.StaticImage;
   private score = 0;
+  private combo = 0;
+  private lastCollectAt = 0;
   private wasOnGround = false;
   private jumpPressed = false;
   private jumpCount = 0;
@@ -75,6 +77,18 @@ export class MainScene extends Phaser.Scene {
       return p;
     });
 
+    // moving platform for next version feel
+    const moving = platforms[Math.floor(platforms.length / 2)];
+    this.tweens.add({
+      targets: moving,
+      x: moving.x + (this.viewport.portrait ? 90 : 140),
+      yoyo: true,
+      repeat: -1,
+      duration: this.viewport.portrait ? 1800 : 1500,
+      ease: 'Sine.easeInOut',
+      onUpdate: () => moving.refreshBody()
+    });
+
     this.player = this.physics.add
       .sprite(Math.round(W * 0.15), Math.round(H * 0.2), 'player')
       .setCollideWorldBounds(true)
@@ -108,7 +122,12 @@ export class MainScene extends Phaser.Scene {
     const W = this.viewport.width;
     const H = this.viewport.height;
 
-    this.score += 10;
+    const now = this.time.now;
+    this.combo = now - this.lastCollectAt < 2200 ? Math.min(this.combo + 1, 5) : 1;
+    this.lastCollectAt = now;
+    const gained = 10 * this.combo;
+
+    this.score += gained;
     this.onScoreChange(this.score);
 
     const p = this.add.particles(this.coin.x, this.coin.y, 'spark', {
@@ -122,7 +141,21 @@ export class MainScene extends Phaser.Scene {
     p.explode(24, this.coin.x, this.coin.y);
     this.time.delayedCall(420, () => p.destroy());
 
-    this.playTone(660, 0.08, 'triangle');
+    const comboText = this.add
+      .text(this.coin.x, this.coin.y - 18, `+${gained}${this.combo > 1 ? ` x${this.combo}` : ''}`, {
+        fontSize: '16px',
+        color: '#ffd166'
+      })
+      .setOrigin(0.5);
+    this.tweens.add({
+      targets: comboText,
+      y: comboText.y - 32,
+      alpha: 0,
+      duration: 550,
+      onComplete: () => comboText.destroy()
+    });
+
+    this.playTone(660 + this.combo * 30, 0.08, 'triangle');
 
     this.coin.setPosition(Phaser.Math.Between(Math.round(W * 0.12), Math.round(W * 0.9)), Phaser.Math.Between(Math.round(H * 0.14), Math.round(H * 0.82)));
     this.coin.refreshBody();

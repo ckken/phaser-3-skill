@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GameView, type ControlState } from './GameView';
 
-const VERSION = 'v0.3.0-mobile';
+const VERSION = 'v0.4.0-combo';
 
 function touchHandlers(setter: (v: boolean) => void) {
   return {
