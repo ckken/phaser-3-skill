@@ -316,6 +316,7 @@ this.add.text(10, 10, '', { fontSize: '16px' })
 | 文档 | 内容 |
 |------|------|
 | `references/core-architecture.md` | Game 配置、场景系统、生命周期、插件、时间系统 |
+| `references/scene-api.md` | Scene API 全览：切换/并行/状态/层级/事件/参数 |
 | `references/game-objects.md` | Image、Sprite、Text、Graphics、Container、Group、对象池 |
 | `references/physics.md` | Arcade 物理、Matter.js 物理、碰撞检测、约束 |
 | `references/input.md` | 键盘、鼠标、触摸、游戏手柄、拖拽 |
