@@ -89,3 +89,10 @@
 ### Changed
 - `MainScene` now reports score to React HUD
 - Demo supports restart button from React UI
+
+
+## 2026-02-15 (phase2 showcase UI)
+
+### Changed
+- 更新 `packages/phaser-demo/src/App.tsx`，在页面左上角增加「Phase 2 成果展示面板」
+- 展示内容包含：React+Phaser 集成、HUD 计分、Restart、Coin 刷新机制
