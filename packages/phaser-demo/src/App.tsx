@@ -29,19 +29,21 @@ export function App() {
         }}
       >
         <div style={cardStyle}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Phaser Demo · Phase 2</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>Phaser Demo · Phase 3</div>
           <div style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>
-            React + Phaser 集成完成，下面是当前阶段成果展示。
+            已进入第三阶段：在 Phase 2 基础上增加特效与反馈。
           </div>
         </div>
 
         <div style={cardStyle}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>✅ 阶段二成果</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>✅ 阶段三当前成果</div>
           <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.5, fontSize: 13 }}>
             <li>React 容器挂载 Phaser 游戏</li>
             <li>HUD 实时显示分数（Score）</li>
             <li>Restart 按钮可一键重开场景</li>
             <li>拾取 Coin 计分并随机刷新位置</li>
+            <li>新增 Coin 粒子爆点效果</li>
+            <li>新增跳跃/落地/拾取音效反馈</li>
           </ul>
         </div>
 
