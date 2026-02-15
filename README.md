@@ -1,15 +1,29 @@
 # phaser-3-skill
 
-To install dependencies:
+Phaser skill docs + Bun workspace demo.
+
+## Workspace
+
+- `skills/` -> skill docs (canonical path)
+- `packages/phaser-demo/` -> runnable Phaser demo
+
+## Run demo locally
 
 ```bash
 bun install
+bun run demo:dev
 ```
 
-To run:
+## Build demo
 
 ```bash
-bun run index.ts
+bun run demo:build
 ```
 
-This project was created using `bun init` in bun v1.3.9. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+## GitHub Pages
+
+Workflow file:
+- `.github/workflows/deploy-pages.yml`
+
+After enabling **Pages -> Source: GitHub Actions**, each push to `main` will deploy:
+- `https://ckken.github.io/phaser-3-skill/`

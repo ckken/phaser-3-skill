@@ -11,5 +11,9 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "scripts": {
+    "demo:dev": "cd packages/phaser-demo && bun run dev",
+    "demo:build": "cd packages/phaser-demo && bun run build"
   }
 }

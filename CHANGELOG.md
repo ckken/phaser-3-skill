@@ -66,3 +66,15 @@
 
 ### Added
 - Root `AGENTS.md` with explicit path policy to avoid future regressions
+
+
+## 2026-02-15 (demo phase 1 + pages)
+
+### Added
+- `packages/phaser-demo` Vite + Phaser runnable demo scaffold
+- `packages/phaser-demo/src/scenes/MainScene.ts` basic playable scene
+- `.github/workflows/deploy-pages.yml` GitHub Pages deployment workflow
+
+### Changed
+- Root `README.md` add local run/build + GitHub Pages instructions
+- Root scripts: `demo:dev`, `demo:build`
