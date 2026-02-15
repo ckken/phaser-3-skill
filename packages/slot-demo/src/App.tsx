@@ -207,7 +207,7 @@ export function App() {
         )}
       </div>
 
-      <div style={styles.version}>v0.4.0-final-polish</div>
+      <div style={styles.version}>v0.4.1-smooth-fix</div>
     </div>
   );
 }
@@ -272,7 +272,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   betSelector: {
     position: 'fixed',
-    bottom: 80,
+    bottom: 100,
     left: 0,
     right: 0,
     zIndex: 10,
@@ -303,7 +303,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   autoProgressContainer: {
     position: 'fixed',
-    bottom: 70,
+    bottom: 92,
     left: 20,
     right: 20,
     height: 3,
@@ -322,12 +322,12 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'fixed',
     left: 0,
     right: 0,
-    bottom: 16,
+    bottom: 28,
     zIndex: 10,
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   controlBtn: {
     width: 44,

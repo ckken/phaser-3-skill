@@ -25,6 +25,10 @@ export class SlotScene extends Phaser.Scene {
   private reelBounceTime = [0, 0, 0];
   private reelTargetY: number[][] = [[], [], []];
 
+  // 滚动速度调慢
+  private baseSpeed = 650;
+  private speedVariance = 50;
+
   private blurOverlays: Phaser.GameObjects.Rectangle[] = [];
 
   // Phase 4: 视觉元素
@@ -206,7 +210,7 @@ export class SlotScene extends Phaser.Scene {
           t.setAlpha(d < 20 ? 1 : 0.7);
         }
       } else if (phase === 'stopping') {
-        const decel = 2200 + col * 200;
+        const decel = 1400 + col * 120;
         this.reelSpeed[col] = Math.max(0, this.reelSpeed[col] - decel * dt);
 
         for (const t of this.reels[col]) {
@@ -272,16 +276,16 @@ export class SlotScene extends Phaser.Scene {
     this.onBalanceChange(this.balance);
     this.onWin(0);
 
-    this.reelSpeed = [1100, 1180, 1260];
+    this.reelSpeed = [this.baseSpeed, this.baseSpeed + this.speedVariance, this.baseSpeed + this.speedVariance * 2];
     this.reelPhase = ['spinning', 'spinning', 'spinning'];
     this.reelFinal = Array.from({ length: 3 }, () =>
       Array.from({ length: 3 }, () => this.randomSymbol())
     );
 
-    this.time.delayedCall(900, () => { this.reelPhase[0] = 'stopping'; });
-    this.time.delayedCall(1200, () => { this.reelPhase[1] = 'stopping'; });
-    this.time.delayedCall(1500, () => { this.reelPhase[2] = 'stopping'; });
-    this.time.delayedCall(2400, () => this.settle(bet));
+    this.time.delayedCall(1200, () => { this.reelPhase[0] = 'stopping'; });
+    this.time.delayedCall(1550, () => { this.reelPhase[1] = 'stopping'; });
+    this.time.delayedCall(1900, () => { this.reelPhase[2] = 'stopping'; });
+    this.time.delayedCall(2800, () => this.settle(bet));
     return true;
   }
 
