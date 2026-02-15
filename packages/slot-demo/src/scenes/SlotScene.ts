@@ -7,6 +7,7 @@ export class SlotScene extends Phaser.Scene {
   private balance = 1000;
   private spinning = false;
   private lineFx?: Phaser.GameObjects.Graphics;
+  private reelsSpinEvents: Phaser.Time.TimerEvent[] = [];
   private colsX = [170, 270, 370];
   private rowsY = [330, 430, 530];
 
@@ -46,6 +47,32 @@ export class SlotScene extends Phaser.Scene {
     return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
   }
 
+  private startReelSpin(col: number) {
+    const ev = this.time.addEvent({
+      delay: 75,
+      loop: true,
+      callback: () => {
+        const a = this.reels[col][0].text;
+        const b = this.reels[col][1].text;
+        const c = this.reels[col][2].text;
+        this.reels[col][0].setText(this.randomSymbol());
+        this.reels[col][1].setText(a);
+        this.reels[col][2].setText(b || c);
+
+        this.reels[col].forEach((t, i) => {
+          t.setScale(i === 1 ? 1.04 : 0.96);
+          t.setAlpha(i === 1 ? 1 : 0.75);
+        });
+      }
+    });
+    this.reelsSpinEvents.push(ev);
+  }
+
+  private stopAllReelSpin() {
+    this.reelsSpinEvents.forEach((ev) => ev.destroy());
+    this.reelsSpinEvents = [];
+  }
+
   private spin(): boolean {
     if (this.spinning) return false;
     const bet = this.getBet();
@@ -59,31 +86,26 @@ export class SlotScene extends Phaser.Scene {
     this.onBalanceChange(this.balance);
     this.onWin(0);
 
-    this.time.addEvent({
-      delay: 60,
-      repeat: 13,
-      callback: () => {
-        for (let c = 0; c < 3; c++) {
-          for (let r = 0; r < 3; r++) {
-            this.reels[c][r].setText(this.randomSymbol());
-          }
-        }
-      }
-    });
+    this.startReelSpin(0);
+    this.time.delayedCall(110, () => this.startReelSpin(1));
+    this.time.delayedCall(220, () => this.startReelSpin(2));
 
     const finalGrid: string[][] = Array.from({ length: 3 }, () =>
       Array.from({ length: 3 }, () => this.randomSymbol())
     );
 
     [0, 1, 2].forEach((col, i) => {
-      this.time.delayedCall(650 + i * 220, () => {
+      this.time.delayedCall(900 + i * 320, () => {
+        this.reelsSpinEvents[col]?.destroy();
         for (let row = 0; row < 3; row++) {
           this.reels[col][row].setText(finalGrid[col][row]);
+          this.reels[col][row].setScale(row === 1 ? 1.06 : 0.98);
+          this.reels[col][row].setAlpha(row === 1 ? 1 : 0.82);
         }
       });
     });
 
-    this.time.delayedCall(1200, () => {
+    this.time.delayedCall(1900, () => {
       const lines = [
         { cells: [[0, 1], [1, 1], [2, 1]] as [number, number][], draw: [[this.colsX[0], this.rowsY[1]], [this.colsX[2], this.rowsY[1]]] },
         { cells: [[0, 0], [1, 0], [2, 0]] as [number, number][], draw: [[this.colsX[0], this.rowsY[0]], [this.colsX[2], this.rowsY[0]]] },
@@ -111,16 +133,21 @@ export class SlotScene extends Phaser.Scene {
       if (win > 0) {
         this.cameras.main.flash(180, 255, 244, 180);
         this.drawHitLines(hitLines, lines);
-        const pop = this.add.text(270, 220, `WIN +${win}`, { fontSize: '42px', color: '#ffe08a', fontStyle: 'bold' }).setOrigin(0.5);
+        const pop = this.add.text(270, 220, `中奖 +${win}`, { fontSize: '42px', color: '#ffe08a', fontStyle: 'bold' }).setOrigin(0.5);
         this.tweens.add({
           targets: pop,
-          y: 180,
+          y: 175,
           alpha: 0,
-          duration: 700,
+          scale: 1.12,
+          duration: 820,
           onComplete: () => pop.destroy()
         });
+      } else {
+        const miss = this.add.text(270, 220, '未中奖', { fontSize: '30px', color: '#c8d2e8' }).setOrigin(0.5);
+        this.tweens.add({ targets: miss, alpha: 0, duration: 520, onComplete: () => miss.destroy() });
       }
 
+      this.stopAllReelSpin();
       this.spinning = false;
       this.onSpinningChange(false);
     });
