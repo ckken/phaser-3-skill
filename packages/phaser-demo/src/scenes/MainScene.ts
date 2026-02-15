@@ -11,6 +11,8 @@ export class MainScene extends Phaser.Scene {
   private score = 0;
   private wasOnGround = false;
   private jumpPressed = false;
+  private jumpCount = 0;
+  private maxJumps = 2;
 
   constructor(
     private onScoreChange: (score: number) => void,
@@ -28,6 +30,7 @@ export class MainScene extends Phaser.Scene {
     const platformW = this.viewport.portrait ? Math.round(W * 0.28) : Math.round(W * 0.2);
     const platformH = Math.max(16, Math.round(H * 0.025));
     const playerSize = this.viewport.portrait ? 52 : 58;
+    this.maxJumps = this.viewport.portrait ? 3 : 2;
 
     const g = this.add.graphics();
     g.fillStyle(0x121826, 1).fillRect(0, 0, W, H).generateTexture('bg', W, H);
@@ -166,15 +169,18 @@ export class MainScene extends Phaser.Scene {
       this.player.clearTint();
     }
 
-    if (wantJump && onGround && !this.jumpPressed) {
-      this.player.setVelocityY(jumpV);
-      this.playTone(280, 0.06, 'square');
-    }
-    this.jumpPressed = wantJump;
-
     if (!this.wasOnGround && onGround) {
       this.playTone(180, 0.04, 'sine');
+      this.jumpCount = 0;
     }
+
+    if (wantJump && !this.jumpPressed && this.jumpCount < this.maxJumps) {
+      this.player.setVelocityY(jumpV);
+      this.playTone(280 + this.jumpCount * 90, 0.06, 'square');
+      this.jumpCount += 1;
+    }
+
+    this.jumpPressed = wantJump;
     this.wasOnGround = onGround;
   }
 }
