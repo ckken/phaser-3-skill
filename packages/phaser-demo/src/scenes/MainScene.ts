@@ -46,11 +46,25 @@ export class MainScene extends Phaser.Scene {
     ground.refreshBody();
 
     const pYs = this.viewport.portrait
-      ? [Math.round(H * 0.72), Math.round(H * 0.58), Math.round(H * 0.44), Math.round(H * 0.32)]
-      : [Math.round(H * 0.78), Math.round(H * 0.63), Math.round(H * 0.5)];
+      ? [
+          Math.round(H * 0.80),
+          Math.round(H * 0.70),
+          Math.round(H * 0.60),
+          Math.round(H * 0.50),
+          Math.round(H * 0.40),
+          Math.round(H * 0.31)
+        ]
+      : [Math.round(H * 0.78), Math.round(H * 0.66), Math.round(H * 0.56), Math.round(H * 0.46)];
     const pXs = this.viewport.portrait
-      ? [Math.round(W * 0.23), Math.round(W * 0.72), Math.round(W * 0.35), Math.round(W * 0.78)]
-      : [Math.round(W * 0.28), Math.round(W * 0.66), Math.round(W * 0.84)];
+      ? [
+          Math.round(W * 0.20),
+          Math.round(W * 0.52),
+          Math.round(W * 0.30),
+          Math.round(W * 0.64),
+          Math.round(W * 0.40),
+          Math.round(W * 0.74)
+        ]
+      : [Math.round(W * 0.24), Math.round(W * 0.46), Math.round(W * 0.66), Math.round(W * 0.84)];
 
     const platforms = pXs.map((x, i) => {
       const p = this.physics.add.staticImage(x, pYs[i], 'platform');
