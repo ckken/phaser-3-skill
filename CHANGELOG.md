@@ -47,3 +47,11 @@
 
 ### Changed
 - `STATUS.md` 勾选“参数类型表（可选值/默认值）”完成项
+
+
+## 2026-02-15 (workspace revert)
+
+### Changed
+- 按 Bun workspace 结构回迁：`skills/phaser-developer` -> `packages/phaser-skill/phaser-developer`
+- `skills/phaser-docs.md` -> `packages/phaser-skill/phaser-docs.md`
+- 保留根目录 `skills/README.md` 作为兼容入口
