@@ -207,7 +207,7 @@ export function App() {
         )}
       </div>
 
-      <div style={styles.version}>v0.4.1-smooth-fix</div>
+      <div style={styles.version}>v0.4.2-no-flicker</div>
     </div>
   );
 }

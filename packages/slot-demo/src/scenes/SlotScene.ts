@@ -34,7 +34,7 @@ export class SlotScene extends Phaser.Scene {
   // Phase 4: 视觉元素
   private frameGlow?: Phaser.GameObjects.Graphics;
   private particles?: Phaser.GameObjects.Particles.ParticleEmitter;
-  private neonTime = 0;
+  private neonAlpha = 0.5;
 
   constructor(
     private onBalanceChange: (v: number) => void,
@@ -99,21 +99,7 @@ export class SlotScene extends Phaser.Scene {
   }
 
   private createBackgroundParticles() {
-    const sparkG = this.add.graphics();
-    sparkG.fillStyle(0xffffff, 1);
-    sparkG.fillCircle(2, 2, 2);
-    sparkG.generateTexture('spark', 4, 4);
-    sparkG.destroy();
-
-    this.particles = this.add.particles(270, 430, 'spark', {
-      x: { min: 0, max: 540 },
-      y: { min: 0, max: 860 },
-      scale: { start: 0.3, end: 0 },
-      alpha: { start: 0.4, end: 0 },
-      lifespan: 3000,
-      frequency: 200,
-      blendMode: 'ADD'
-    });
+    // 禁用背景粒子，减少闪屏
   }
 
   private createMetalFrame() {
@@ -133,29 +119,31 @@ export class SlotScene extends Phaser.Scene {
     frame.fillStyle(0x0b0f1a, 1);
     frame.fillRoundedRect(65, 260, 410, 340, 8);
 
-    // 霓虹发光层
+    // 霓虹发光层（静态绘制一次）
     this.frameGlow = this.add.graphics();
-    this.updateNeonGlow(0);
+    this.drawStaticNeonGlow();
 
     // 内部高亮边框
     this.add.rectangle(270, 430, 406, 106, 0xffffff, 0.05).setStrokeStyle(2, 0x6ef2ff, 0.6);
   }
 
-  private updateNeonGlow(time: number) {
+  private updateNeonGlow(_time: number) {
+    // 静态霓虹，不再每帧重绘
+  }
+
+  private drawStaticNeonGlow() {
     if (!this.frameGlow) return;
     this.frameGlow.clear();
 
-    const pulse = 0.5 + 0.5 * Math.sin(time * 0.003);
-    const alpha = 0.3 + pulse * 0.4;
+    const alpha = this.neonAlpha;
 
-    // 外发光
-    this.frameGlow.lineStyle(8, 0x6ef2ff, alpha * 0.3);
+    this.frameGlow.lineStyle(6, 0x6ef2ff, alpha * 0.25);
     this.frameGlow.strokeRoundedRect(55, 245, 430, 370, 12);
 
-    this.frameGlow.lineStyle(4, 0x6ef2ff, alpha * 0.6);
+    this.frameGlow.lineStyle(3, 0x6ef2ff, alpha * 0.5);
     this.frameGlow.strokeRoundedRect(57, 247, 426, 366, 11);
 
-    this.frameGlow.lineStyle(2, 0xaef8ff, alpha);
+    this.frameGlow.lineStyle(1.5, 0xaef8ff, alpha * 0.8);
     this.frameGlow.strokeRoundedRect(59, 249, 422, 362, 10);
   }
 
@@ -180,11 +168,8 @@ export class SlotScene extends Phaser.Scene {
     });
   }
 
-  update(time: number, delta: number) {
-    // Phase 4: 霓虹灯动画
-    this.neonTime += delta;
-    this.updateNeonGlow(this.neonTime);
-
+  update(_time: number, delta: number) {
+    // 移除霓虹灯动画，减少闪屏
     const dt = delta / 1000;
 
     for (let col = 0; col < 3; col++) {
@@ -201,13 +186,14 @@ export class SlotScene extends Phaser.Scene {
       if (phase === 'spinning') {
         for (const t of this.reels[col]) {
           t.y += this.reelSpeed[col] * dt;
-          if (t.y > this.reelBottom) {
-            t.y -= (this.reelBottom - this.reelTop + this.rowStep);
+          // 平滑循环：提前重置位置，避免跳变
+          if (t.y > this.reelBottom - 20) {
+            t.y = this.reelTop + (t.y - this.reelBottom);
             t.setText(this.randomSymbol());
           }
           const d = Math.abs(t.y - this.rowsY[1]);
-          t.setScale(d < 20 ? 1.08 : 0.94);
-          t.setAlpha(d < 20 ? 1 : 0.7);
+          t.setScale(d < 30 ? 1.06 : 0.95);
+          t.setAlpha(d < 30 ? 1 : 0.75);
         }
       } else if (phase === 'stopping') {
         const decel = 1400 + col * 120;
@@ -215,14 +201,14 @@ export class SlotScene extends Phaser.Scene {
 
         for (const t of this.reels[col]) {
           t.y += this.reelSpeed[col] * dt;
-          if (t.y > this.reelBottom) {
-            t.y -= (this.reelBottom - this.reelTop + this.rowStep);
+          if (t.y > this.reelBottom - 20) {
+            t.y = this.reelTop + (t.y - this.reelBottom);
             t.setText(this.randomSymbol());
           }
           const d = Math.abs(t.y - this.rowsY[1]);
-          const slowFactor = 1 - (this.reelSpeed[col] / 1200);
-          t.setScale(Phaser.Math.Linear(0.94, d < 20 ? 1.1 : 0.96, slowFactor));
-          t.setAlpha(Phaser.Math.Linear(0.7, d < 20 ? 1 : 0.78, slowFactor));
+          const slowFactor = 1 - (this.reelSpeed[col] / 800);
+          t.setScale(Phaser.Math.Linear(0.95, d < 30 ? 1.08 : 0.96, slowFactor));
+          t.setAlpha(Phaser.Math.Linear(0.75, d < 30 ? 1 : 0.8, slowFactor));
         }
 
         if (this.reelSpeed[col] <= 80) {
