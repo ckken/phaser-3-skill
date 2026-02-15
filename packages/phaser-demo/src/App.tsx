@@ -1,78 +1,107 @@
-import { useMemo, useState } from 'react';
-import { GameView } from './GameView';
+import { useMemo, useRef, useState } from 'react';
+import { GameView, type ControlState } from './GameView';
 
-const cardStyle: React.CSSProperties = {
-  background: 'rgba(0,0,0,0.55)',
-  border: '1px solid rgba(255,255,255,0.15)',
-  borderRadius: 10,
-  padding: '10px 12px',
-  marginBottom: 10,
-  backdropFilter: 'blur(4px)'
-};
+const VERSION = 'v0.3.0-mobile';
+
+function touchHandlers(setter: (v: boolean) => void) {
+  return {
+    onPointerDown: () => setter(true),
+    onPointerUp: () => setter(false),
+    onPointerCancel: () => setter(false),
+    onPointerLeave: () => setter(false)
+  };
+}
 
 export function App() {
   const [score, setScore] = useState(0);
   const [seed, setSeed] = useState(1);
 
-  const hud = useMemo(
-    () => (
-      <div
-        style={{
-          position: 'fixed',
-          top: 12,
-          left: 12,
-          zIndex: 10,
-          color: '#fff',
-          fontFamily: 'Inter, system-ui, -apple-system, Segoe UI, sans-serif',
-          width: 360,
-          maxWidth: 'calc(100vw - 24px)'
-        }}
-      >
-        <div style={cardStyle}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Phaser Demo · Phase 3</div>
-          <div style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>
-            已进入第三阶段：在 Phase 2 基础上增加特效与反馈。
-          </div>
-        </div>
+  const [left, setLeft] = useState(false);
+  const [right, setRight] = useState(false);
+  const [jump, setJump] = useState(false);
 
-        <div style={cardStyle}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>✅ 阶段三当前成果</div>
-          <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.5, fontSize: 13 }}>
-            <li>React 容器挂载 Phaser 游戏</li>
-            <li>HUD 实时显示分数（Score）</li>
-            <li>Restart 按钮可一键重开场景</li>
-            <li>拾取 Coin 计分并随机刷新位置</li>
-            <li>新增 Coin 粒子爆点效果</li>
-            <li>新增跳跃/落地/拾取音效反馈</li>
-          </ul>
-        </div>
-
-        <div style={cardStyle}>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>实时状态</div>
-          <div style={{ marginTop: 6, fontSize: 14 }}>Score: <b>{score}</b></div>
-          <button
-            onClick={() => setSeed((v) => v + 1)}
-            style={{
-              marginTop: 8,
-              border: 0,
-              borderRadius: 8,
-              padding: '8px 12px',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            Restart
-          </button>
-        </div>
-      </div>
-    ),
-    [score]
-  );
+  const controls: ControlState = useMemo(() => ({ left, right, jump }), [left, right, jump]);
+  const controlsRef = useRef<ControlState>(controls);
+  controlsRef.current = controls;
 
   return (
     <>
-      {hud}
-      <GameView key={seed} onScoreChange={setScore} />
+      <div
+        style={{
+          position: 'fixed',
+          top: 10,
+          left: 12,
+          zIndex: 20,
+          color: '#fff',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          display: 'flex',
+          gap: 10,
+          alignItems: 'center'
+        }}
+      >
+        <div style={{ fontWeight: 700 }}>Score: {score}</div>
+        <button
+          onClick={() => setSeed((v) => v + 1)}
+          style={{ border: 0, borderRadius: 8, padding: '6px 10px', fontWeight: 600, cursor: 'pointer' }}
+        >
+          Restart
+        </button>
+      </div>
+
+      <div
+        style={{
+          position: 'fixed',
+          right: 10,
+          bottom: 8,
+          zIndex: 20,
+          color: 'rgba(255,255,255,0.7)',
+          fontSize: 12,
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace'
+        }}
+      >
+        {VERSION}
+      </div>
+
+      <GameView key={seed} onScoreChange={setScore} controlsRef={controlsRef} />
+
+      {/* Mobile controls */}
+      <div
+        style={{
+          position: 'fixed',
+          left: 10,
+          right: 10,
+          bottom: 16,
+          zIndex: 30,
+          display: 'flex',
+          justifyContent: 'space-between',
+          pointerEvents: 'none'
+        }}
+      >
+        <div style={{ display: 'flex', gap: 10, pointerEvents: 'auto' }}>
+          <button
+            aria-label="left"
+            {...touchHandlers(setLeft)}
+            style={{ width: 58, height: 58, borderRadius: 999, border: '1px solid rgba(255,255,255,0.35)', background: 'rgba(0,0,0,0.35)', color: '#fff', fontSize: 18 }}
+          >
+            ◀
+          </button>
+          <button
+            aria-label="right"
+            {...touchHandlers(setRight)}
+            style={{ width: 58, height: 58, borderRadius: 999, border: '1px solid rgba(255,255,255,0.35)', background: 'rgba(0,0,0,0.35)', color: '#fff', fontSize: 18 }}
+          >
+            ▶
+          </button>
+        </div>
+
+        <button
+          aria-label="jump"
+          {...touchHandlers(setJump)}
+          style={{ width: 64, height: 64, borderRadius: 999, border: '1px solid rgba(255,255,255,0.35)', background: 'rgba(0,0,0,0.35)', color: '#fff', fontSize: 16, pointerEvents: 'auto' }}
+        >
+          JUMP
+        </button>
+      </div>
     </>
   );
 }

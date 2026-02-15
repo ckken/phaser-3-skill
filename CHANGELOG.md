@@ -96,3 +96,11 @@
 ### Changed
 - 更新 `packages/phaser-demo/src/App.tsx`，在页面左上角增加「Phase 2 成果展示面板」
 - 展示内容包含：React+Phaser 集成、HUD 计分、Restart、Coin 刷新机制
+
+
+## 2026-02-15 (phase3 mobile polish)
+
+### Changed
+- `packages/phaser-demo` 改为移动端友好 HUD（精简顶部信息 + 底部触控按键）
+- 页面仅保留小字版本号 `v0.3.0-mobile`
+- Demo 场景升级：平台布局、视差背景、粒子与音效反馈、触控控制接入
