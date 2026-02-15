@@ -78,3 +78,14 @@
 ### Changed
 - Root `README.md` add local run/build + GitHub Pages instructions
 - Root scripts: `demo:dev`, `demo:build`
+
+
+## 2026-02-15 (phase2 react)
+
+### Added
+- React integration for `packages/phaser-demo`
+- `src/App.tsx` + `src/GameView.tsx` for React HUD and Phaser container
+
+### Changed
+- `MainScene` now reports score to React HUD
+- Demo supports restart button from React UI
