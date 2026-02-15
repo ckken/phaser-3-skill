@@ -55,7 +55,7 @@ export class SlotScene extends Phaser.Scene {
     // quick fake roll animation
     this.time.addEvent({
       delay: 60,
-      repeat: 10,
+      repeat: 13,
       callback: () => {
         for (let c = 0; c < 3; c++) {
           for (let r = 0; r < 3; r++) {
@@ -65,21 +65,47 @@ export class SlotScene extends Phaser.Scene {
       }
     });
 
-    this.time.delayedCall(900, () => {
-      // final result for middle line
-      const middle = [this.randomSymbol(), this.randomSymbol(), this.randomSymbol()];
-      for (let c = 0; c < 3; c++) {
-        this.reels[c][1].setText(middle[c]);
+    const finalGrid: string[][] = Array.from({ length: 3 }, () =>
+      Array.from({ length: 3 }, () => this.randomSymbol())
+    );
+
+    // stop reel one by one for better slot feel
+    [0, 1, 2].forEach((col, i) => {
+      this.time.delayedCall(650 + i * 220, () => {
+        for (let row = 0; row < 3; row++) {
+          this.reels[col][row].setText(finalGrid[col][row]);
+        }
+      });
+    });
+
+    this.time.delayedCall(1200, () => {
+      const lines = [
+        [
+          finalGrid[0][1],
+          finalGrid[1][1],
+          finalGrid[2][1]
+        ], // mid
+        [finalGrid[0][0], finalGrid[1][0], finalGrid[2][0]], // top
+        [finalGrid[0][2], finalGrid[1][2], finalGrid[2][2]], // bottom
+        [finalGrid[0][0], finalGrid[1][1], finalGrid[2][2]], // diag \\
+        [finalGrid[0][2], finalGrid[1][1], finalGrid[2][0]] // diag /
+      ];
+
+      let hits = 0;
+      for (const line of lines) {
+        if (line[0] === line[1] && line[1] === line[2]) hits += 1;
       }
 
-      let win = 0;
-      if (middle[0] === middle[1] && middle[1] === middle[2]) {
-        win = bet * 5;
-      }
+      const win = hits > 0 ? bet * (3 + hits * 2) : 0;
 
       this.balance += win;
       this.onBalanceChange(this.balance);
       this.onWin(win);
+
+      if (win > 0) {
+        this.cameras.main.flash(180, 255, 244, 180);
+      }
+
       this.spinning = false;
     });
   }
