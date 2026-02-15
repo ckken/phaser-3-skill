@@ -29,3 +29,12 @@
 
 ### Notes
 - 当前策略：主文档做高密度索引，细节下沉 references，降低 token 消耗并提升可检索性。
+
+
+## 2026-02-15 (update)
+
+### Added
+- `skills/phaser-developer/references/api-signature-index.md`（方法签名索引）
+
+### Changed
+- `STATUS.md` 勾选“方法级签名索引”完成项
