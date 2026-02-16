@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { SlotGameView } from './SlotGameView';
 
 const BET_OPTIONS = [10, 25, 50, 100];
+const BASE_PATH = '/phaser-3-skill';
 
 export function App() {
   const [balance, setBalance] = useState(1000);
@@ -85,6 +86,14 @@ export function App() {
 
   return (
     <div style={styles.container}>
+      {/* 返回首页按钮 */}
+      <button
+        onClick={() => window.location.href = BASE_PATH + '/'}
+        style={styles.homeBtn}
+      >
+        ← 首页
+      </button>
+
       {/* 顶部信息栏 */}
       <div style={styles.topBar}>
         <div style={styles.infoCard}>
@@ -156,51 +165,55 @@ export function App() {
         </div>
       )}
 
-      {/* 底部控制栏 */}
+      {/* 底部控制栏 - 重新布局避免重叠 */}
       <div style={styles.bottomControls}>
-        <button
-          disabled={spinning}
-          onClick={() => setBet((b) => Math.max(10, b - 5))}
-          style={{ ...styles.sideBtn, ...(spinning ? styles.btnDisabled : {}) }}
-        >
-          −
-        </button>
-
-        <button
-          disabled={spinning}
-          onClick={handleSpin}
-          style={{
-            ...styles.spinBtn,
-            ...(spinning ? styles.spinBtnDisabled : {})
-          }}
-        >
-          {spinning ? '...' : '¡GIRAR!'}
-        </button>
-
-        <button
-          disabled={spinning}
-          onClick={() => setBet((b) => Math.min(100, b + 5))}
-          style={{ ...styles.sideBtn, ...(spinning ? styles.btnDisabled : {}) }}
-        >
-          +
-        </button>
-
-        {autoLeft > 0 ? (
-          <button onClick={handleStopAuto} style={styles.stopBtn}>
-            PARAR
-          </button>
-        ) : (
+        <div style={styles.controlRow}>
           <button
             disabled={spinning}
-            onClick={() => handleAuto(10)}
-            style={{ ...styles.autoBtn, ...(spinning ? styles.btnDisabled : {}) }}
+            onClick={() => setBet((b) => Math.max(10, b - 5))}
+            style={{ ...styles.sideBtn, ...(spinning ? styles.btnDisabled : {}) }}
           >
-            AUTO ×10
+            −
           </button>
-        )}
+
+          <button
+            disabled={spinning}
+            onClick={handleSpin}
+            style={{
+              ...styles.spinBtn,
+              ...(spinning ? styles.spinBtnDisabled : {})
+            }}
+          >
+            {spinning ? '...' : '¡GIRAR!'}
+          </button>
+
+          <button
+            disabled={spinning}
+            onClick={() => setBet((b) => Math.min(100, b + 5))}
+            style={{ ...styles.sideBtn, ...(spinning ? styles.btnDisabled : {}) }}
+          >
+            +
+          </button>
+        </div>
+
+        <div style={styles.autoRow}>
+          {autoLeft > 0 ? (
+            <button onClick={handleStopAuto} style={styles.stopBtn}>
+              PARAR
+            </button>
+          ) : (
+            <button
+              disabled={spinning}
+              onClick={() => handleAuto(10)}
+              style={{ ...styles.autoBtn, ...(spinning ? styles.btnDisabled : {}) }}
+            >
+              AUTO ×10
+            </button>
+          )}
+        </div>
       </div>
 
-      <div style={styles.version}>TORO SLOTS v1.0</div>
+      <div style={styles.version}>TORO SLOTS v1.1</div>
     </div>
   );
 }
@@ -212,6 +225,28 @@ const styles: Record<string, React.CSSProperties> = {
     height: '100%',
     fontFamily: "'Georgia', 'Times New Roman', serif",
     background: 'linear-gradient(180deg, #1a0a0a 0%, #0d0505 100%)',
+    // 防止点击闪动
+    WebkitTapHighlightColor: 'transparent',
+    WebkitTouchCallout: 'none',
+    WebkitUserSelect: 'none',
+    userSelect: 'none',
+  },
+  homeBtn: {
+    position: 'fixed',
+    top: 70,
+    left: 10,
+    zIndex: 20,
+    padding: '8px 14px',
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#fff8dc',
+    background: 'rgba(45, 21, 21, 0.9)',
+    border: '2px solid #b8860b',
+    borderRadius: 8,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    WebkitTapHighlightColor: 'transparent',
+    outline: 'none',
   },
   topBar: {
     position: 'fixed',
@@ -269,16 +304,18 @@ const styles: Record<string, React.CSSProperties> = {
   },
   betSelector: {
     position: 'fixed',
-    bottom: 110,
+    bottom: 140,
     left: 0,
     right: 0,
     zIndex: 10,
     display: 'flex',
     justifyContent: 'center',
     gap: 8,
+    flexWrap: 'wrap',
+    padding: '0 16px',
   },
   betBtn: {
-    padding: '8px 18px',
+    padding: '8px 16px',
     fontSize: 14,
     fontWeight: 'bold',
     color: '#fff8dc',
@@ -288,6 +325,10 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     transition: 'all 0.15s ease',
     fontFamily: 'inherit',
+    // 防止点击闪动
+    WebkitTapHighlightColor: 'transparent',
+    outline: 'none',
+    minWidth: 50,
   },
   betBtnActive: {
     color: '#ffd700',
@@ -301,7 +342,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   autoProgressContainer: {
     position: 'fixed',
-    bottom: 100,
+    bottom: 130,
     left: 30,
     right: 30,
     height: 6,
@@ -327,17 +368,28 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'fixed',
     left: 0,
     right: 0,
-    bottom: 30,
+    bottom: 20,
     zIndex: 10,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 12,
+    padding: '0 16px',
+  },
+  controlRow: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
+  },
+  autoRow: {
+    display: 'flex',
+    justifyContent: 'center',
   },
   sideBtn: {
-    width: 48,
-    height: 48,
-    fontSize: 24,
+    width: 44,
+    height: 44,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#fff8dc',
     background: 'linear-gradient(180deg, #3d2020 0%, #2d1515 100%)',
@@ -347,11 +399,14 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'all 0.15s ease',
     boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
     fontFamily: 'inherit',
+    // 防止点击闪动
+    WebkitTapHighlightColor: 'transparent',
+    outline: 'none',
   },
   spinBtn: {
-    width: 100,
-    height: 100,
-    fontSize: 16,
+    width: 90,
+    height: 90,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#fff8dc',
     background: 'linear-gradient(180deg, #c41e3a 0%, #8b0000 100%)',
@@ -362,6 +417,9 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 6px 20px rgba(196,30,58,0.5), inset 0 2px 0 rgba(255,255,255,0.2)',
     fontFamily: 'inherit',
     letterSpacing: 1,
+    // 防止点击闪动
+    WebkitTapHighlightColor: 'transparent',
+    outline: 'none',
   },
   spinBtnDisabled: {
     background: 'linear-gradient(180deg, #4d2525 0%, #3d1515 100%)',
@@ -370,7 +428,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'not-allowed',
   },
   autoBtn: {
-    padding: '14px 18px',
+    padding: '12px 24px',
     fontSize: 12,
     fontWeight: 'bold',
     color: '#ffd700',
@@ -382,9 +440,12 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
     fontFamily: 'inherit',
     letterSpacing: 1,
+    // 防止点击闪动
+    WebkitTapHighlightColor: 'transparent',
+    outline: 'none',
   },
   stopBtn: {
-    padding: '14px 18px',
+    padding: '12px 24px',
     fontSize: 12,
     fontWeight: 'bold',
     color: '#ff6b6b',
@@ -396,6 +457,9 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
     fontFamily: 'inherit',
     letterSpacing: 1,
+    // 防止点击闪动
+    WebkitTapHighlightColor: 'transparent',
+    outline: 'none',
   },
   btnDisabled: {
     opacity: 0.5,
@@ -418,6 +482,19 @@ styleSheet.textContent = `
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.3; }
+  }
+  
+  /* 全局防止点击闪动 */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  button:focus {
+    outline: none;
+  }
+  
+  button:active {
+    transform: scale(0.97);
   }
 `;
 document.head.appendChild(styleSheet);

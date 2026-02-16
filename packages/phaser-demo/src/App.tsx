@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GameView, type ControlState } from './GameView';
 
-const VERSION = 'v0.4.0-combo';
+const VERSION = 'v0.5.0';
+const BASE_PATH = '/phaser-3-skill';
 
 function touchHandlers(setter: (v: boolean) => void) {
   return {
@@ -58,10 +59,16 @@ export function App() {
           alignItems: 'center'
         }}
       >
+        <button
+          onClick={() => window.location.href = BASE_PATH + '/'}
+          style={{ border: 0, borderRadius: 8, padding: '6px 10px', fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,0.9)' }}
+        >
+          ← 首页
+        </button>
         <div style={{ fontWeight: 700 }}>Score: {score}</div>
         <button
           onClick={() => setSeed((v) => v + 1)}
-          style={{ border: 0, borderRadius: 8, padding: '6px 10px', fontWeight: 600, cursor: 'pointer' }}
+          style={{ border: 0, borderRadius: 8, padding: '6px 10px', fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,0.9)' }}
         >
           Restart
         </button>
