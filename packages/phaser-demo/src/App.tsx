@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'wouter';
 import { GameView, type ControlState } from './GameView';
 
 const VERSION = 'v0.5.0';
-const BASE_PATH = '/phaser-3-skill';
 
 function touchHandlers(setter: (v: boolean) => void) {
   return {
@@ -59,12 +59,12 @@ export function App() {
           alignItems: 'center'
         }}
       >
-        <button
-          onClick={() => window.location.href = BASE_PATH + '/'}
-          style={{ border: 0, borderRadius: 8, padding: '6px 10px', fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,0.9)' }}
+        <Link
+          href="/"
+          style={{ border: 0, borderRadius: 8, padding: '6px 10px', fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,0.9)', textDecoration: 'none', color: '#000' }}
         >
           ← 首页
-        </button>
+        </Link>
         <div style={{ fontWeight: 700 }}>Score: {score}</div>
         <button
           onClick={() => setSeed((v) => v + 1)}

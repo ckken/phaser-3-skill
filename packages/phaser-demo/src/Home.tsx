@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 
 const BASE_PATH = '/phaser-3-skill';
 
 export function Home() {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [, navigate] = useLocation();
 
   const games = [
     {
@@ -11,7 +13,7 @@ export function Home() {
       title: '🎮 Phaser Demo',
       subtitle: 'Platformer Adventure',
       description: '经典平台跳跃游戏，收集金币，躲避障碍！',
-      path: `${BASE_PATH}/#game`,
+      route: '/game',
       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       icon: '🏃',
     },
@@ -20,19 +22,17 @@ export function Home() {
       title: '🎰 Slot Demo',
       subtitle: 'TORO SLOTS',
       description: '斗牛主题老虎机，体验西班牙风情！',
-      path: `${BASE_PATH}/slot/`,
+      href: `${BASE_PATH}/slot/`,
       gradient: 'linear-gradient(135deg, #c41e3a 0%, #8b0000 100%)',
       icon: '🐂',
     },
   ];
 
-  const handleNavigate = (path: string) => {
-    if (path.includes('#game')) {
-      // 同页面内跳转到游戏
-      window.location.hash = 'game';
-      window.location.reload();
-    } else {
-      window.location.href = path;
+  const handleNavigate = (game: typeof games[0]) => {
+    if (game.route) {
+      navigate(game.route);
+    } else if (game.href) {
+      window.location.href = game.href;
     }
   };
 
@@ -55,7 +55,7 @@ export function Home() {
         {games.map((game) => (
           <button
             key={game.id}
-            onClick={() => handleNavigate(game.path)}
+            onClick={() => handleNavigate(game)}
             onMouseEnter={() => setHoveredCard(game.id)}
             onMouseLeave={() => setHoveredCard(null)}
             style={{

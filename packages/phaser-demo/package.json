@@ -11,7 +11,8 @@
   "dependencies": {
     "phaser": "^3.90.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "wouter": "^3.9.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.10",

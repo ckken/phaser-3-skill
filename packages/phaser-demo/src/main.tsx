@@ -1,15 +1,20 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Router, Route, Switch } from 'wouter';
 import { App } from './App';
 import { Home } from './Home';
 
-// 检查是否在首页
-const isHome = window.location.pathname === '/phaser-3-skill/' || 
-               window.location.pathname === '/phaser-3-skill' ||
-               window.location.hash === '#home';
+const BASE_PATH = '/phaser-3-skill';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {isHome ? <Home /> : <App />}
+    <Router base={BASE_PATH}>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/game" component={App} />
+        {/* 其他路径 fallback 到首页 */}
+        <Route component={Home} />
+      </Switch>
+    </Router>
   </React.StrictMode>
 );
