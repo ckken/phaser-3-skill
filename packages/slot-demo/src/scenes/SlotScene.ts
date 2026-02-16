@@ -36,7 +36,8 @@ export class SlotScene extends Phaser.Scene {
   private readonly REEL_SPACING = 130;
   private readonly REEL_START_X = 140;
   private readonly REEL_TOP = 340;
-  private readonly VISIBLE_SYMBOLS = 5;
+  // 增加可见符号数量，确保滚动路径连续可见
+  private readonly VISIBLE_SYMBOLS = 7;
 
   // 滚动参数 - 增强动感
   private reelSpeed = [0, 0, 0];
@@ -45,17 +46,20 @@ export class SlotScene extends Phaser.Scene {
   private reelOffset = [0, 0, 0];
   private reelStopDelay = [0, 0, 0];
   private bounceProgress = [0, 0, 0];
-  private accelProgress = [0, 0, 0]; // 加速进度追踪
+  private accelProgress = [0, 0, 0];
+  // 预生成符号队列，避免滚动时随机生成导致闪动
+  private symbolQueue: string[][] = [[], [], []];
+  private queueIndex = [0, 0, 0];
 
-  // 速度参数 - 优化动感
-  private readonly MAX_SPEED = 2200;        // 提高最大速度
-  private readonly ACCEL_DURATION = 0.35;   // 加速时长（秒）
-  private readonly SPIN_MIN_TIME = 0.8;     // 最小匀速时间
-  private readonly DECEL_DURATION = 0.6;    // 减速时长
-  private readonly BOUNCE_DURATION = 0.35;
-  private readonly BOUNCE_OVERSHOOT = 18;
-  private readonly STOP_INTERVAL_BASE = 0.45; // 错峰停轮基础间隔
-  private readonly STOP_INTERVAL_RAND = 0.25; // 错峰随机范围
+  // 速度参数 - 优化动感（向下滚动）
+  private readonly MAX_SPEED = 1800;        // 最大速度（像素/秒）
+  private readonly ACCEL_DURATION = 0.4;    // 加速时长（秒）- 快速启动
+  private readonly SPIN_MIN_TIME = 1.0;     // 最小匀速时间
+  private readonly DECEL_DURATION = 0.7;    // 减速时长 - 更长的减速感
+  private readonly BOUNCE_DURATION = 0.3;   // 回弹时长
+  private readonly BOUNCE_OVERSHOOT = 12;   // 回弹幅度（像素）
+  private readonly STOP_INTERVAL_BASE = 0.5; // 错峰停轮基础间隔
+  private readonly STOP_INTERVAL_RAND = 0.2; // 错峰随机范围
 
   constructor(
     private onBalanceChange: (v: number) => void,
@@ -185,9 +189,9 @@ export class SlotScene extends Phaser.Scene {
       this.reels[col] = container;
       this.reelSymbols[col] = [];
 
-      // 创建足够多的符号用于滚动
-      for (let i = 0; i < this.VISIBLE_SYMBOLS + 2; i++) {
-        const y = this.REEL_TOP - this.SYMBOL_SIZE + i * this.SYMBOL_SIZE;
+      // 创建足够多的符号用于滚动（增加数量确保连续可见）
+      for (let i = 0; i < this.VISIBLE_SYMBOLS; i++) {
+        const y = this.REEL_TOP - this.SYMBOL_SIZE * 2 + i * this.SYMBOL_SIZE;
         const symbol = this.add.text(0, y, this.randomSymbol(), {
           fontSize: '56px',
         }).setOrigin(0.5);
@@ -222,21 +226,42 @@ export class SlotScene extends Phaser.Scene {
     return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
   }
 
-  // 缓动函数：快速启动的加速曲线
+  // 预生成符号队列，避免滚动时随机生成
+  private prepareSymbolQueue(col: number) {
+    // 生成足够多的符号（约50个，足够整个滚动过程）
+    this.symbolQueue[col] = [];
+    for (let i = 0; i < 50; i++) {
+      this.symbolQueue[col].push(this.randomSymbol());
+    }
+    this.queueIndex[col] = 0;
+  }
+
+  private getNextSymbol(col: number): string {
+    const queue = this.symbolQueue[col];
+    if (this.queueIndex[col] >= queue.length) {
+      // 队列用完，追加更多
+      for (let i = 0; i < 20; i++) {
+        queue.push(this.randomSymbol());
+      }
+    }
+    return queue[this.queueIndex[col]++];
+  }
+
+  // 缓动函数：快速启动的加速曲线（easeOutQuad）
   private easeOutQuad(t: number): number {
     return t * (2 - t);
   }
 
-  // 缓动函数：平滑减速曲线（带惯性感）
-  private easeInOutCubic(t: number): number {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  // 缓动函数：平滑减速曲线（easeOutCubic - 更自然的惯性感）
+  private easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
   }
 
-  // 弹性缓动：停轮弹跳
-  private easeOutElastic(x: number): number {
-    const c4 = (2 * Math.PI) / 3.5; // 调整弹性系数
-    return x === 0 ? 0 : x === 1 ? 1 :
-      Math.pow(2, -12 * x) * Math.sin((x * 10 - 0.75) * c4) + 1;
+  // 弹性缓动：停轮回弹（轻微弹跳）
+  private easeOutBack(x: number): number {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
   }
 
   update(_time: number, delta: number) {
@@ -247,7 +272,7 @@ export class SlotScene extends Phaser.Scene {
       if (phase === 'idle') continue;
 
       if (phase === 'accel') {
-        // 使用缓动的加速 - 快速启动感
+        // 加速阶段 - 快速启动
         this.accelProgress[col] += dt / this.ACCEL_DURATION;
         const t = Math.min(this.accelProgress[col], 1);
         const eased = this.easeOutQuad(t);
@@ -259,19 +284,19 @@ export class SlotScene extends Phaser.Scene {
         }
         this.updateReelScroll(col, dt);
       } else if (phase === 'spinning') {
-        // 匀速阶段 - 保持稳定
+        // 匀速阶段 - 稳定滚动
         this.reelStopDelay[col] -= dt;
         if (this.reelStopDelay[col] <= 0) {
           this.reelPhase[col] = 'decel';
-          this.accelProgress[col] = 0; // 复用作为减速进度
+          this.accelProgress[col] = 0;
         }
         this.updateReelScroll(col, dt);
       } else if (phase === 'decel') {
-        // 使用缓动的减速 - 惯性感
+        // 减速阶段 - 惯性减速
         this.accelProgress[col] += dt / this.DECEL_DURATION;
         const t = Math.min(this.accelProgress[col], 1);
-        // 使用 easeInOutCubic 让减速更有惯性感
-        const eased = this.easeInOutCubic(t);
+        // 使用 easeOutCubic 让减速更有惯性感
+        const eased = this.easeOutCubic(t);
         this.reelSpeed[col] = this.MAX_SPEED * (1 - eased);
 
         this.updateReelScroll(col, dt);
@@ -283,11 +308,13 @@ export class SlotScene extends Phaser.Scene {
           this.bounceProgress[col] = 0;
         }
       } else if (phase === 'bounce') {
+        // 回弹阶段 - 轻微弹跳
         this.bounceProgress[col] += dt;
         const t = Math.min(this.bounceProgress[col] / this.BOUNCE_DURATION, 1);
-        const bounce = this.easeOutElastic(t);
+        // 使用 easeOutBack 实现轻微回弹
+        const bounce = this.easeOutBack(t);
         
-        // 应用弹跳偏移
+        // 应用弹跳偏移（先向下过冲，再回弹）
         const bounceOffset = (1 - bounce) * this.BOUNCE_OVERSHOOT;
         this.applyBounceOffset(col, bounceOffset);
 
@@ -301,29 +328,26 @@ export class SlotScene extends Phaser.Scene {
   }
 
   private updateReelScroll(col: number, dt: number) {
+    // 向下滚动（y 增加）
     this.reelOffset[col] += this.reelSpeed[col] * dt;
     const symbols = this.reelSymbols[col];
 
-    // 循环滚动
+    // 循环滚动 - 当偏移超过一个符号高度时，回收顶部符号到底部
     while (this.reelOffset[col] >= this.SYMBOL_SIZE) {
       this.reelOffset[col] -= this.SYMBOL_SIZE;
-      // 将顶部符号移到底部
+      // 将顶部符号移到底部，使用预生成的符号
       const topSymbol = symbols.shift()!;
-      topSymbol.setText(this.randomSymbol());
+      topSymbol.setText(this.getNextSymbol(col));
       symbols.push(topSymbol);
     }
 
-    // 更新位置
+    // 更新所有符号位置 - 保持完全可见，不做透明度变化
     for (let i = 0; i < symbols.length; i++) {
-      const baseY = this.REEL_TOP - this.SYMBOL_SIZE + i * this.SYMBOL_SIZE;
+      const baseY = this.REEL_TOP - this.SYMBOL_SIZE * 2 + i * this.SYMBOL_SIZE;
       symbols[i].setY(baseY + this.reelOffset[col]);
-
-      // 模糊效果 - 高速时降低透明度，增强速度感
-      const speedRatio = this.reelSpeed[col] / this.MAX_SPEED;
-      symbols[i].setAlpha(1 - speedRatio * 0.5);
-      // 高速时轻微缩放，增加动感
-      const scale = 1 - speedRatio * 0.1;
-      symbols[i].setScale(scale);
+      // 保持符号完全可见，不改变透明度和缩放
+      symbols[i].setAlpha(1);
+      symbols[i].setScale(1);
     }
   }
 
@@ -331,15 +355,15 @@ export class SlotScene extends Phaser.Scene {
     const symbols = this.reelSymbols[col];
     this.reelOffset[col] = 0;
 
-    // 设置最终符号
+    // 设置最终符号（中间3行是可见的结果）
     for (let i = 0; i < symbols.length; i++) {
-      const row = i - 1;
+      const row = i - 2; // 调整索引，使 row 0-2 对应可见区域
       if (row >= 0 && row < this.ROW_COUNT) {
         symbols[i].setText(this.reelFinal[col][row]);
       } else {
         symbols[i].setText(this.randomSymbol());
       }
-      symbols[i].setY(this.REEL_TOP - this.SYMBOL_SIZE + i * this.SYMBOL_SIZE);
+      symbols[i].setY(this.REEL_TOP - this.SYMBOL_SIZE * 2 + i * this.SYMBOL_SIZE);
       symbols[i].setAlpha(1);
       symbols[i].setScale(1);
     }
@@ -348,7 +372,7 @@ export class SlotScene extends Phaser.Scene {
   private applyBounceOffset(col: number, offset: number) {
     const symbols = this.reelSymbols[col];
     for (let i = 0; i < symbols.length; i++) {
-      const baseY = this.REEL_TOP - this.SYMBOL_SIZE + i * this.SYMBOL_SIZE;
+      const baseY = this.REEL_TOP - this.SYMBOL_SIZE * 2 + i * this.SYMBOL_SIZE;
       symbols[i].setY(baseY + offset);
     }
   }
@@ -377,13 +401,19 @@ export class SlotScene extends Phaser.Scene {
       Array.from({ length: this.ROW_COUNT }, () => this.randomSymbol())
     );
 
-    // 错峰启动和停止 - 更明显的节奏差异
+    // 为每列预生成符号队列
+    for (let col = 0; col < this.REEL_COUNT; col++) {
+      this.prepareSymbolQueue(col);
+    }
+
+    // 错峰启动和停止 - 明显的节奏差异
     for (let col = 0; col < this.REEL_COUNT; col++) {
       this.reelSpeed[col] = 0;
       this.reelPhase[col] = 'accel';
       this.reelOffset[col] = 0;
       this.accelProgress[col] = 0;
       // 错峰停止延迟：基础时间 + 列索引递增 + 随机抖动
+      // 第一列最先停，第三列最后停
       this.reelStopDelay[col] = this.SPIN_MIN_TIME + 
         col * this.STOP_INTERVAL_BASE + 
         Math.random() * this.STOP_INTERVAL_RAND;
@@ -456,7 +486,8 @@ export class SlotScene extends Phaser.Scene {
     );
 
     unique.forEach((pos, idx) => {
-      const symbol = this.reelSymbols[pos.col][pos.row + 1];
+      // 调整索引以匹配新的符号数组布局
+      const symbol = this.reelSymbols[pos.col][pos.row + 2];
       this.time.delayedCall(idx * 100, () => {
         this.tweens.add({
           targets: symbol,
