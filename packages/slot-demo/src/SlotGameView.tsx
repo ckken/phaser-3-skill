@@ -26,9 +26,16 @@ export function SlotGameView({
       parent: hostRef.current,
       width: 540,
       height: 960,
-      backgroundColor: '#131724',
+      backgroundColor: '#1a0a0a',
       scene: [scene],
-      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
+      scale: { 
+        mode: Phaser.Scale.FIT, 
+        autoCenter: Phaser.Scale.CENTER_BOTH 
+      },
+      render: {
+        antialias: true,
+        pixelArt: false,
+      }
     });
 
     return () => game.destroy(true);

@@ -1,40 +1,57 @@
 import Phaser from 'phaser';
 
-const SYMBOLS = ['🍒', '🍋', '⭐', '7', '🔔', '💎', '🍉', '🍀'];
+// 斗牛主题符号 - 使用 emoji 占位
+const SYMBOLS = ['🐂', '🌹', '⚔️', '🏆', '💃', '🎺', '🍷', '👑'];
 
 const SYMBOL_MULTIPLIER: Record<string, number> = {
-  '💎': 5, '7': 4, '⭐': 3, '🔔': 2.5, '🍀': 2, '🍉': 1.5, '🍋': 1.2, '🍒': 1
+  '👑': 10, '🏆': 5, '🐂': 4, '⚔️': 3, '💃': 2.5, '🌹': 2, '🎺': 1.5, '🍷': 1
+};
+
+// 配色方案 - CASINO CORRIDA 风格
+const COLORS = {
+  bgDark: 0x1a0a0a,
+  bgMid: 0x2d1515,
+  gold: 0xffd700,
+  goldDark: 0xb8860b,
+  red: 0xc41e3a,
+  redDark: 0x8b0000,
+  cream: 0xfff8dc,
+  bronze: 0xcd7f32,
 };
 
 export class SlotScene extends Phaser.Scene {
-  private reels: Phaser.GameObjects.Text[][] = [];
+  private reels: Phaser.GameObjects.Container[] = [];
+  private reelSymbols: Phaser.GameObjects.Text[][] = [];
   private balance = 1000;
   private spinning = false;
   private lineFx?: Phaser.GameObjects.Graphics;
   private coinEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
 
-  private colsX = [170, 270, 370];
-  private rowsY = [330, 430, 530];
-  private rowStep = 90;
-  private reelBottom = 660;
-  private reelTop = -60;
+  // 布局参数
+  private readonly GAME_W = 540;
+  private readonly GAME_H = 960;
+  private readonly REEL_COUNT = 3;
+  private readonly ROW_COUNT = 3;
+  private readonly SYMBOL_SIZE = 80;
+  private readonly REEL_SPACING = 130;
+  private readonly REEL_START_X = 140;
+  private readonly REEL_TOP = 340;
+  private readonly VISIBLE_SYMBOLS = 5;
 
+  // 滚动参数
   private reelSpeed = [0, 0, 0];
-  private reelPhase: ('idle' | 'spinning' | 'stopping' | 'bouncing')[] = ['idle', 'idle', 'idle'];
+  private reelPhase: ('idle' | 'accel' | 'spinning' | 'decel' | 'bounce')[] = ['idle', 'idle', 'idle'];
   private reelFinal: string[][] = [[], [], []];
-  private reelBounceTime = [0, 0, 0];
-  private reelTargetY: number[][] = [[], [], []];
+  private reelOffset = [0, 0, 0];
+  private reelStopDelay = [0, 0, 0];
+  private bounceProgress = [0, 0, 0];
 
-  // 滚动速度调慢
-  private baseSpeed = 650;
-  private speedVariance = 50;
-
-  private blurOverlays: Phaser.GameObjects.Rectangle[] = [];
-
-  // Phase 4: 视觉元素
-  private frameGlow?: Phaser.GameObjects.Graphics;
-  private particles?: Phaser.GameObjects.Particles.ParticleEmitter;
-  private neonAlpha = 0.5;
+  // 速度参数
+  private readonly MAX_SPEED = 1800;
+  private readonly ACCEL_RATE = 4000;
+  private readonly DECEL_RATE = 2500;
+  private readonly BOUNCE_DURATION = 0.3;
+  private readonly BOUNCE_OVERSHOOT = 15;
 
   constructor(
     private onBalanceChange: (v: number) => void,
@@ -47,206 +64,269 @@ export class SlotScene extends Phaser.Scene {
   }
 
   create() {
-    // Phase 4: 渐变背景
-    this.createGradientBackground();
-
-    // Phase 4: 背景粒子
-    this.createBackgroundParticles();
-
-    // Phase 4: 金属质感外框
-    this.createMetalFrame();
-
-    // 遮罩区域
-    const maskRect = this.add.rectangle(270, 430, 400, 320, 0xffffff, 1);
-    const reelMask = maskRect.createGeometryMask();
-
-    const reelCount = 8;
-    for (let c = 0; c < 3; c++) {
-      this.reels[c] = [];
-      for (let i = 0; i < reelCount; i++) {
-        const y = this.reelTop + i * this.rowStep;
-        const t = this.add.text(this.colsX[c], y, this.randomSymbol(), { fontSize: '54px' }).setOrigin(0.5);
-        t.setMask(reelMask);
-        this.reels[c][i] = t;
-      }
-
-      const blur = this.add.rectangle(this.colsX[c], 430, 80, 300, 0xffffff, 0.08);
-      blur.setMask(reelMask);
-      blur.setVisible(false);
-      this.blurOverlays[c] = blur;
-    }
-
-    maskRect.destroy();
-    this.lineFx = this.add.graphics();
+    this.createBackground();
+    this.createTitle();
+    this.createReelFrame();
+    this.createReels();
     this.createCoinParticles();
+    this.lineFx = this.add.graphics();
 
     this.onBalanceChange(this.balance);
     this.onSpinningChange(false);
     this.registerSpin(() => this.spin());
   }
 
-  private createGradientBackground() {
+  private createBackground() {
+    // 深红渐变背景
     const g = this.add.graphics();
-    const w = 540, h = 860;
-    for (let i = 0; i < h; i++) {
-      const t = i / h;
-      const r = Math.floor(Phaser.Math.Linear(0x08, 0x1a, t));
-      const gr = Math.floor(Phaser.Math.Linear(0x0a, 0x0f, t));
-      const b = Math.floor(Phaser.Math.Linear(0x20, 0x35, t));
+    for (let i = 0; i < this.GAME_H; i++) {
+      const t = i / this.GAME_H;
+      const r = Math.floor(Phaser.Math.Linear(0x1a, 0x0d, t));
+      const gr = Math.floor(Phaser.Math.Linear(0x0a, 0x05, t));
+      const b = Math.floor(Phaser.Math.Linear(0x0a, 0x05, t));
       g.fillStyle((r << 16) | (gr << 8) | b, 1);
-      g.fillRect(0, i, w, 1);
+      g.fillRect(0, i, this.GAME_W, 1);
     }
+
+    // 装饰性图案 - 顶部和底部金色边条
+    this.add.rectangle(this.GAME_W / 2, 25, this.GAME_W - 40, 4, COLORS.gold, 0.6);
+    this.add.rectangle(this.GAME_W / 2, this.GAME_H - 25, this.GAME_W - 40, 4, COLORS.gold, 0.6);
+
+    // 角落装饰
+    this.drawCornerOrnament(30, 30, 1, 1);
+    this.drawCornerOrnament(this.GAME_W - 30, 30, -1, 1);
+    this.drawCornerOrnament(30, this.GAME_H - 30, 1, -1);
+    this.drawCornerOrnament(this.GAME_W - 30, this.GAME_H - 30, -1, -1);
   }
 
-  private createBackgroundParticles() {
-    // 禁用背景粒子，减少闪屏
+  private drawCornerOrnament(x: number, y: number, sx: number, sy: number) {
+    const g = this.add.graphics();
+    g.lineStyle(2, COLORS.gold, 0.7);
+    g.beginPath();
+    g.moveTo(x, y + sy * 20);
+    g.lineTo(x, y);
+    g.lineTo(x + sx * 20, y);
+    g.strokePath();
   }
 
-  private createMetalFrame() {
+  private createTitle() {
+    // 标题背景装饰
+    const titleBg = this.add.graphics();
+    titleBg.fillStyle(COLORS.redDark, 0.8);
+    titleBg.fillRoundedRect(70, 100, 400, 80, 12);
+    titleBg.lineStyle(3, COLORS.gold, 0.9);
+    titleBg.strokeRoundedRect(70, 100, 400, 80, 12);
+
+    // 主标题
+    this.add.text(this.GAME_W / 2, 125, '🐂 TORO SLOTS 🐂', {
+      fontSize: '32px',
+      fontFamily: 'Georgia, serif',
+      color: '#ffd700',
+      stroke: '#8b0000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    // 副标题
+    this.add.text(this.GAME_W / 2, 158, '¡Olé! Fortune Awaits', {
+      fontSize: '14px',
+      fontFamily: 'Georgia, serif',
+      color: '#fff8dc',
+    }).setOrigin(0.5);
+  }
+
+  private createReelFrame() {
+    const frameX = 50;
+    const frameY = this.REEL_TOP - 60;
+    const frameW = 440;
+    const frameH = 300;
+
     // 外框阴影
-    this.add.rectangle(274, 434, 430, 370, 0x000000, 0.5);
+    this.add.rectangle(frameX + frameW / 2 + 4, frameY + frameH / 2 + 4, frameW, frameH, 0x000000, 0.5)
+      .setOrigin(0.5);
 
-    // 金属外框
+    // 主框架 - 深红木质感
     const frame = this.add.graphics();
-    frame.fillStyle(0x2a2a3a, 1);
-    frame.fillRoundedRect(55, 245, 430, 370, 12);
+    frame.fillStyle(COLORS.bgMid, 1);
+    frame.fillRoundedRect(frameX, frameY, frameW, frameH, 16);
 
-    // 金属高光
-    frame.fillStyle(0x4a4a5a, 1);
-    frame.fillRoundedRect(58, 248, 424, 8, 4);
+    // 金色边框
+    frame.lineStyle(4, COLORS.gold, 1);
+    frame.strokeRoundedRect(frameX, frameY, frameW, frameH, 16);
 
-    // 内框
-    frame.fillStyle(0x0b0f1a, 1);
-    frame.fillRoundedRect(65, 260, 410, 340, 8);
+    // 内边框
+    frame.lineStyle(2, COLORS.goldDark, 0.6);
+    frame.strokeRoundedRect(frameX + 8, frameY + 8, frameW - 16, frameH - 16, 12);
 
-    // 霓虹发光层（静态绘制一次）
-    this.frameGlow = this.add.graphics();
-    this.drawStaticNeonGlow();
+    // 轮盘区域背景
+    const reelBg = this.add.graphics();
+    reelBg.fillStyle(0x0d0505, 1);
+    reelBg.fillRoundedRect(frameX + 15, frameY + 15, frameW - 30, frameH - 30, 8);
 
-    // 内部高亮边框
-    this.add.rectangle(270, 430, 406, 106, 0xffffff, 0.05).setStrokeStyle(2, 0x6ef2ff, 0.6);
+    // 中奖线指示器
+    const lineY = this.REEL_TOP + this.SYMBOL_SIZE;
+    this.add.rectangle(frameX + 8, lineY, 8, 60, COLORS.gold, 0.8);
+    this.add.rectangle(frameX + frameW - 8, lineY, 8, 60, COLORS.gold, 0.8);
   }
 
-  private updateNeonGlow(_time: number) {
-    // 静态霓虹，不再每帧重绘
-  }
+  private createReels() {
+    const maskG = this.add.graphics();
+    maskG.fillStyle(0xffffff);
+    maskG.fillRect(65, this.REEL_TOP - 45, 410, 250);
+    const mask = maskG.createGeometryMask();
+    maskG.setVisible(false);
 
-  private drawStaticNeonGlow() {
-    if (!this.frameGlow) return;
-    this.frameGlow.clear();
+    for (let col = 0; col < this.REEL_COUNT; col++) {
+      const container = this.add.container(this.REEL_START_X + col * this.REEL_SPACING, 0);
+      container.setMask(mask);
+      this.reels[col] = container;
+      this.reelSymbols[col] = [];
 
-    const alpha = this.neonAlpha;
-
-    this.frameGlow.lineStyle(6, 0x6ef2ff, alpha * 0.25);
-    this.frameGlow.strokeRoundedRect(55, 245, 430, 370, 12);
-
-    this.frameGlow.lineStyle(3, 0x6ef2ff, alpha * 0.5);
-    this.frameGlow.strokeRoundedRect(57, 247, 426, 366, 11);
-
-    this.frameGlow.lineStyle(1.5, 0xaef8ff, alpha * 0.8);
-    this.frameGlow.strokeRoundedRect(59, 249, 422, 362, 10);
+      // 创建足够多的符号用于滚动
+      for (let i = 0; i < this.VISIBLE_SYMBOLS + 2; i++) {
+        const y = this.REEL_TOP - this.SYMBOL_SIZE + i * this.SYMBOL_SIZE;
+        const symbol = this.add.text(0, y, this.randomSymbol(), {
+          fontSize: '56px',
+        }).setOrigin(0.5);
+        container.add(symbol);
+        this.reelSymbols[col].push(symbol);
+      }
+    }
   }
 
   private createCoinParticles() {
     const coinG = this.add.graphics();
-    coinG.fillStyle(0xffd700, 1);
-    coinG.fillCircle(8, 8, 8);
+    coinG.fillStyle(COLORS.gold, 1);
+    coinG.fillCircle(10, 10, 10);
     coinG.fillStyle(0xffec8b, 1);
-    coinG.fillCircle(6, 6, 3);
-    coinG.generateTexture('coin', 16, 16);
+    coinG.fillCircle(7, 7, 4);
+    coinG.generateTexture('coin', 20, 20);
     coinG.destroy();
 
-    this.coinEmitter = this.add.particles(270, -20, 'coin', {
-      speed: { min: 100, max: 300 },
+    this.coinEmitter = this.add.particles(this.GAME_W / 2, 200, 'coin', {
+      speed: { min: 150, max: 400 },
       angle: { min: 60, max: 120 },
-      scale: { start: 0.8, end: 0.3 },
-      alpha: { start: 1, end: 0.6 },
-      lifespan: 2500,
-      gravityY: 200,
+      scale: { start: 1, end: 0.3 },
+      alpha: { start: 1, end: 0.5 },
+      lifespan: 2000,
+      gravityY: 300,
       quantity: 0,
-      emitting: false
+      emitting: false,
     });
   }
 
+  private randomSymbol(): string {
+    return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+  }
+
   update(_time: number, delta: number) {
-    // 移除霓虹灯动画，减少闪屏
     const dt = delta / 1000;
 
-    for (let col = 0; col < 3; col++) {
+    for (let col = 0; col < this.REEL_COUNT; col++) {
       const phase = this.reelPhase[col];
+      if (phase === 'idle') continue;
 
-      if (phase === 'idle') {
-        this.blurOverlays[col].setVisible(false);
-        continue;
-      }
-
-      this.blurOverlays[col].setVisible(phase === 'spinning');
-      this.blurOverlays[col].setAlpha(Math.min(this.reelSpeed[col] / 1500, 0.15));
-
-      if (phase === 'spinning') {
-        for (const t of this.reels[col]) {
-          t.y += this.reelSpeed[col] * dt;
-          // 平滑循环：提前重置位置，避免跳变
-          if (t.y > this.reelBottom - 20) {
-            t.y = this.reelTop + (t.y - this.reelBottom);
-            t.setText(this.randomSymbol());
-          }
-          const d = Math.abs(t.y - this.rowsY[1]);
-          t.setScale(d < 30 ? 1.06 : 0.95);
-          t.setAlpha(d < 30 ? 1 : 0.75);
+      if (phase === 'accel') {
+        this.reelSpeed[col] = Math.min(this.MAX_SPEED, this.reelSpeed[col] + this.ACCEL_RATE * dt);
+        if (this.reelSpeed[col] >= this.MAX_SPEED) {
+          this.reelPhase[col] = 'spinning';
         }
-      } else if (phase === 'stopping') {
-        const decel = 1400 + col * 120;
-        this.reelSpeed[col] = Math.max(0, this.reelSpeed[col] - decel * dt);
-
-        for (const t of this.reels[col]) {
-          t.y += this.reelSpeed[col] * dt;
-          if (t.y > this.reelBottom - 20) {
-            t.y = this.reelTop + (t.y - this.reelBottom);
-            t.setText(this.randomSymbol());
-          }
-          const d = Math.abs(t.y - this.rowsY[1]);
-          const slowFactor = 1 - (this.reelSpeed[col] / 800);
-          t.setScale(Phaser.Math.Linear(0.95, d < 30 ? 1.08 : 0.96, slowFactor));
-          t.setAlpha(Phaser.Math.Linear(0.75, d < 30 ? 1 : 0.8, slowFactor));
+        this.updateReelScroll(col, dt);
+      } else if (phase === 'spinning') {
+        this.reelStopDelay[col] -= dt;
+        if (this.reelStopDelay[col] <= 0) {
+          this.reelPhase[col] = 'decel';
         }
+        this.updateReelScroll(col, dt);
+      } else if (phase === 'decel') {
+        // 非线性减速 - 更真实的停轮感
+        const decelFactor = 1 + (this.reelSpeed[col] / this.MAX_SPEED) * 0.5;
+        this.reelSpeed[col] = Math.max(0, this.reelSpeed[col] - this.DECEL_RATE * decelFactor * dt);
+        this.updateReelScroll(col, dt);
 
-        if (this.reelSpeed[col] <= 80) {
+        if (this.reelSpeed[col] <= 50) {
           this.reelSpeed[col] = 0;
-          this.prepareBounceLock(col);
-          this.reelPhase[col] = 'bouncing';
-          this.reelBounceTime[col] = 0;
+          this.snapToFinal(col);
+          this.reelPhase[col] = 'bounce';
+          this.bounceProgress[col] = 0;
         }
-      } else if (phase === 'bouncing') {
-        this.reelBounceTime[col] += dt;
-        const t = this.reelBounceTime[col];
-        const duration = 0.25;
+      } else if (phase === 'bounce') {
+        this.bounceProgress[col] += dt;
+        const t = Math.min(this.bounceProgress[col] / this.BOUNCE_DURATION, 1);
+        const bounce = this.easeOutElastic(t);
+        
+        // 应用弹跳偏移
+        const bounceOffset = (1 - bounce) * this.BOUNCE_OVERSHOOT;
+        this.applyBounceOffset(col, bounceOffset);
 
-        if (t >= duration) {
-          this.finalizeBounce(col);
+        if (t >= 1) {
           this.reelPhase[col] = 'idle';
-          this.blurOverlays[col].setVisible(false);
-        } else {
-          const progress = t / duration;
-          const bounce = this.easeOutBack(progress, 1.3);
-          for (let r = 0; r < 3; r++) {
-            const targetY = this.reelTargetY[col][r];
-            const startY = targetY + 25;
-            this.reels[col][r + 2].setY(Phaser.Math.Linear(startY, targetY, bounce));
-          }
+          this.applyBounceOffset(col, 0);
+          this.checkAllStopped();
         }
       }
     }
   }
 
-  private easeOutBack(x: number, overshoot: number): number {
-    const c1 = overshoot;
-    const c3 = c1 + 1;
-    return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+  private updateReelScroll(col: number, dt: number) {
+    this.reelOffset[col] += this.reelSpeed[col] * dt;
+    const symbols = this.reelSymbols[col];
+    const totalHeight = symbols.length * this.SYMBOL_SIZE;
+
+    // 循环滚动
+    while (this.reelOffset[col] >= this.SYMBOL_SIZE) {
+      this.reelOffset[col] -= this.SYMBOL_SIZE;
+      // 将顶部符号移到底部
+      const topSymbol = symbols.shift()!;
+      topSymbol.setText(this.randomSymbol());
+      symbols.push(topSymbol);
+    }
+
+    // 更新位置
+    for (let i = 0; i < symbols.length; i++) {
+      const baseY = this.REEL_TOP - this.SYMBOL_SIZE + i * this.SYMBOL_SIZE;
+      symbols[i].setY(baseY + this.reelOffset[col]);
+
+      // 模糊效果 - 高速时降低透明度
+      const speedRatio = this.reelSpeed[col] / this.MAX_SPEED;
+      symbols[i].setAlpha(1 - speedRatio * 0.4);
+    }
   }
 
-  private randomSymbol() {
-    return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+  private snapToFinal(col: number) {
+    const symbols = this.reelSymbols[col];
+    this.reelOffset[col] = 0;
+
+    // 设置最终符号
+    for (let i = 0; i < symbols.length; i++) {
+      const row = i - 1;
+      if (row >= 0 && row < this.ROW_COUNT) {
+        symbols[i].setText(this.reelFinal[col][row]);
+      } else {
+        symbols[i].setText(this.randomSymbol());
+      }
+      symbols[i].setY(this.REEL_TOP - this.SYMBOL_SIZE + i * this.SYMBOL_SIZE);
+      symbols[i].setAlpha(1);
+    }
+  }
+
+  private applyBounceOffset(col: number, offset: number) {
+    const symbols = this.reelSymbols[col];
+    for (let i = 0; i < symbols.length; i++) {
+      const baseY = this.REEL_TOP - this.SYMBOL_SIZE + i * this.SYMBOL_SIZE;
+      symbols[i].setY(baseY + offset);
+    }
+  }
+
+  private easeOutElastic(x: number): number {
+    const c4 = (2 * Math.PI) / 3;
+    return x === 0 ? 0 : x === 1 ? 1 :
+      Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * c4) + 1;
+  }
+
+  private checkAllStopped() {
+    if (this.reelPhase.every(p => p === 'idle')) {
+      this.settle();
+    }
   }
 
   private spin(): boolean {
@@ -262,54 +342,33 @@ export class SlotScene extends Phaser.Scene {
     this.onBalanceChange(this.balance);
     this.onWin(0);
 
-    this.reelSpeed = [this.baseSpeed, this.baseSpeed + this.speedVariance, this.baseSpeed + this.speedVariance * 2];
-    this.reelPhase = ['spinning', 'spinning', 'spinning'];
-    this.reelFinal = Array.from({ length: 3 }, () =>
-      Array.from({ length: 3 }, () => this.randomSymbol())
+    // 生成最终结果
+    this.reelFinal = Array.from({ length: this.REEL_COUNT }, () =>
+      Array.from({ length: this.ROW_COUNT }, () => this.randomSymbol())
     );
 
-    this.time.delayedCall(1200, () => { this.reelPhase[0] = 'stopping'; });
-    this.time.delayedCall(1550, () => { this.reelPhase[1] = 'stopping'; });
-    this.time.delayedCall(1900, () => { this.reelPhase[2] = 'stopping'; });
-    this.time.delayedCall(2800, () => this.settle(bet));
+    // 错峰启动和停止
+    for (let col = 0; col < this.REEL_COUNT; col++) {
+      this.reelSpeed[col] = 200;
+      this.reelPhase[col] = 'accel';
+      this.reelOffset[col] = 0;
+      // 错峰停止延迟：第一列最先停，每列间隔 0.4-0.6 秒
+      this.reelStopDelay[col] = 1.2 + col * 0.5 + Math.random() * 0.2;
+    }
+
     return true;
   }
 
-  private prepareBounceLock(col: number) {
-    const arr = this.reels[col];
-    arr.sort((a, b) => a.y - b.y);
-
-    for (let r = 0; r < 3; r++) {
-      this.reelTargetY[col][r] = this.rowsY[r];
-      arr[r + 2].setText(this.reelFinal[col][r]);
-    }
-
-    arr[0].setY(this.rowsY[0] - 2 * this.rowStep).setText(this.randomSymbol());
-    arr[1].setY(this.rowsY[0] - 1 * this.rowStep).setText(this.randomSymbol());
-    arr[5].setY(this.rowsY[2] + 1 * this.rowStep).setText(this.randomSymbol());
-    arr[6].setY(this.rowsY[2] + 2 * this.rowStep).setText(this.randomSymbol());
-    arr[7].setY(this.rowsY[2] + 3 * this.rowStep).setText(this.randomSymbol());
-  }
-
-  private finalizeBounce(col: number) {
-    const arr = this.reels[col];
-    arr.sort((a, b) => a.y - b.y);
-
-    for (let r = 0; r < 3; r++) {
-      arr[r + 2].setY(this.rowsY[r]);
-      arr[r + 2].setScale(r === 1 ? 1.1 : 0.96);
-      arr[r + 2].setAlpha(r === 1 ? 1 : 0.78);
-    }
-  }
-
-  private settle(bet: number) {
+  private settle() {
+    const bet = this.getBet();
     const g = this.reelFinal;
+
     const lines = [
-      { cells: [g[0][1], g[1][1], g[2][1]], draw: [[this.colsX[0], this.rowsY[1]], [this.colsX[2], this.rowsY[1]]], row: 1 },
-      { cells: [g[0][0], g[1][0], g[2][0]], draw: [[this.colsX[0], this.rowsY[0]], [this.colsX[2], this.rowsY[0]]], row: 0 },
-      { cells: [g[0][2], g[1][2], g[2][2]], draw: [[this.colsX[0], this.rowsY[2]], [this.colsX[2], this.rowsY[2]]], row: 2 },
-      { cells: [g[0][0], g[1][1], g[2][2]], draw: [[this.colsX[0], this.rowsY[0]], [this.colsX[2], this.rowsY[2]]], diagonal: 'down' },
-      { cells: [g[0][2], g[1][1], g[2][0]], draw: [[this.colsX[0], this.rowsY[2]], [this.colsX[2], this.rowsY[0]]], diagonal: 'up' }
+      { cells: [g[0][1], g[1][1], g[2][1]], row: 1 },
+      { cells: [g[0][0], g[1][0], g[2][0]], row: 0 },
+      { cells: [g[0][2], g[1][2], g[2][2]], row: 2 },
+      { cells: [g[0][0], g[1][1], g[2][2]], diagonal: 'down' },
+      { cells: [g[0][2], g[1][1], g[2][0]], diagonal: 'up' },
     ];
 
     let totalWin = 0;
@@ -336,151 +395,169 @@ export class SlotScene extends Phaser.Scene {
     const win = Math.round(totalWin);
 
     if (win > 0) {
-      this.animateWinningSymbols(hitSymbols);
-      this.animateWinLines(hitLines, lines);
-      this.animateWinAmount(win);
+      this.animateWin(hitSymbols, win);
+      this.drawWinLines(hitLines);
 
-      if (hitLines.length >= 3) this.triggerJackpotEffect();
-
-      this.cameras.main.flash(220, 255, 244, 180);
+      if (hitLines.length >= 2) {
+        this.triggerBigWin();
+      }
 
       this.time.delayedCall(1500, () => {
         this.balance += win;
         this.onBalanceChange(this.balance);
         this.onWin(win);
+        this.spinning = false;
+        this.onSpinningChange(false);
       });
     } else {
-      const miss = this.add.text(270, 220, '未中奖', { fontSize: '30px', color: '#c8d2e8' }).setOrigin(0.5);
-      this.tweens.add({ targets: miss, alpha: 0, duration: 520, onComplete: () => miss.destroy() });
-      this.onWin(0);
+      this.showNoWin();
+      this.spinning = false;
+      this.onSpinningChange(false);
     }
-
-    this.spinning = false;
-    this.onSpinningChange(false);
   }
 
-  private animateWinningSymbols(symbols: { col: number; row: number }[]) {
-    const unique = symbols.filter((s, i, arr) => arr.findIndex(x => x.col === s.col && x.row === s.row) === i);
+  private animateWin(symbols: { col: number; row: number }[], amount: number) {
+    // 中奖符号动画
+    const unique = symbols.filter((s, i, arr) =>
+      arr.findIndex(x => x.col === s.col && x.row === s.row) === i
+    );
 
-    unique.forEach((pos, index) => {
-      const arr = this.reels[pos.col];
-      arr.sort((a, b) => a.y - b.y);
-      const symbol = arr[pos.row + 2];
-
-      this.time.delayedCall(index * 120, () => {
+    unique.forEach((pos, idx) => {
+      const symbol = this.reelSymbols[pos.col][pos.row + 1];
+      this.time.delayedCall(idx * 100, () => {
         this.tweens.add({
           targets: symbol,
-          scale: 1.4,
-          duration: 150,
+          scale: 1.3,
+          duration: 200,
           yoyo: true,
           repeat: 2,
-          ease: 'Sine.easeInOut',
-          onStart: () => symbol.setTint(0xffff00),
-          onComplete: () => {
-            symbol.clearTint();
-            symbol.setScale(pos.row === 1 ? 1.1 : 0.96);
-          }
+          ease: 'Bounce.easeOut',
+          onStart: () => symbol.setTint(COLORS.gold),
+          onComplete: () => symbol.clearTint(),
         });
       });
     });
+
+    // 中奖金额显示
+    const winText = this.add.text(this.GAME_W / 2, 240, '', {
+      fontSize: '42px',
+      fontFamily: 'Georgia, serif',
+      color: '#ffd700',
+      stroke: '#8b0000',
+      strokeThickness: 4,
+    }).setOrigin(0.5);
+
+    this.tweens.addCounter({
+      from: 0,
+      to: amount,
+      duration: 1000,
+      ease: 'Cubic.easeOut',
+      onUpdate: (tween) => winText.setText(`¡GANASTE +${Math.round(tween.getValue() ?? 0)}!`),
+      onComplete: () => {
+        this.time.delayedCall(1000, () => {
+          this.tweens.add({
+            targets: winText,
+            alpha: 0,
+            y: 200,
+            duration: 500,
+            onComplete: () => winText.destroy(),
+          });
+        });
+      },
+    });
   }
 
-  private animateWinLines(hitLines: number[], lines: Array<{ draw: number[][] }>) {
+  private drawWinLines(hitLines: number[]) {
     if (!this.lineFx) return;
 
+    const lineCoords = [
+      [[80, this.REEL_TOP + this.SYMBOL_SIZE], [460, this.REEL_TOP + this.SYMBOL_SIZE]],
+      [[80, this.REEL_TOP], [460, this.REEL_TOP]],
+      [[80, this.REEL_TOP + this.SYMBOL_SIZE * 2], [460, this.REEL_TOP + this.SYMBOL_SIZE * 2]],
+      [[80, this.REEL_TOP], [460, this.REEL_TOP + this.SYMBOL_SIZE * 2]],
+      [[80, this.REEL_TOP + this.SYMBOL_SIZE * 2], [460, this.REEL_TOP]],
+    ];
+
     hitLines.forEach((idx, i) => {
-      this.time.delayedCall(i * 200, () => {
-        const [[x1, y1], [x2, y2]] = lines[idx].draw;
-        const sweepLine = this.add.graphics();
+      this.time.delayedCall(i * 150, () => {
+        const [[x1, y1], [x2, y2]] = lineCoords[idx];
+        const line = this.add.graphics();
 
         this.tweens.addCounter({
           from: 0,
           to: 1,
           duration: 300,
-          ease: 'Sine.easeOut',
           onUpdate: (tween) => {
-            const progress = tween.getValue();
-            sweepLine.clear();
-            sweepLine.lineStyle(6, 0x6ef2ff, 0.9);
-            sweepLine.beginPath();
-            sweepLine.moveTo(x1, y1);
-            sweepLine.lineTo(Phaser.Math.Linear(x1, x2, progress), Phaser.Math.Linear(y1, y2, progress));
-            sweepLine.strokePath();
-
-            sweepLine.lineStyle(12, 0x6ef2ff, 0.3);
-            sweepLine.beginPath();
-            sweepLine.moveTo(x1, y1);
-            sweepLine.lineTo(Phaser.Math.Linear(x1, x2, progress), Phaser.Math.Linear(y1, y2, progress));
-            sweepLine.strokePath();
+            const p = tween.getValue() ?? 0;
+            line.clear();
+            line.lineStyle(4, COLORS.gold, 0.9);
+            line.beginPath();
+            line.moveTo(x1, y1);
+            line.lineTo(Phaser.Math.Linear(x1, x2, p), Phaser.Math.Linear(y1, y2, p));
+            line.strokePath();
           },
           onComplete: () => {
-            this.time.delayedCall(800, () => {
+            this.time.delayedCall(1000, () => {
               this.tweens.add({
-                targets: sweepLine,
+                targets: line,
                 alpha: 0,
                 duration: 300,
-                onComplete: () => sweepLine.destroy()
+                onComplete: () => line.destroy(),
               });
             });
-          }
+          },
         });
       });
     });
   }
 
-  private animateWinAmount(finalAmount: number) {
-    const winText = this.add.text(270, 200, '中奖 +0', {
-      fontSize: '48px',
-      color: '#ffe08a',
-      fontStyle: 'bold',
-      stroke: '#000',
-      strokeThickness: 4
-    }).setOrigin(0.5);
-
-    this.tweens.addCounter({
-      from: 0,
-      to: finalAmount,
-      duration: 1200,
-      ease: 'Cubic.easeOut',
-      onUpdate: (tween) => winText.setText(`中奖 +${Math.round(tween.getValue())}`),
-      onComplete: () => {
-        this.tweens.add({ targets: winText, scale: 1.2, duration: 150, yoyo: true, repeat: 1, ease: 'Bounce.easeOut' });
-        this.time.delayedCall(1000, () => {
-          this.tweens.add({ targets: winText, y: 150, alpha: 0, scale: 1.1, duration: 600, onComplete: () => winText.destroy() });
-        });
-      }
-    });
-  }
-
-  private triggerJackpotEffect() {
-    this.cameras.main.flash(400, 255, 215, 0);
+  private triggerBigWin() {
+    this.cameras.main.flash(300, 255, 215, 0);
 
     if (this.coinEmitter) {
-      this.coinEmitter.setPosition(270, 100);
-      this.coinEmitter.explode(80);
-      this.time.delayedCall(200, () => { this.coinEmitter?.setPosition(150, 150); this.coinEmitter?.explode(40); });
-      this.time.delayedCall(400, () => { this.coinEmitter?.setPosition(390, 150); this.coinEmitter?.explode(40); });
+      this.coinEmitter.explode(60);
+      this.time.delayedCall(200, () => this.coinEmitter?.explode(40));
     }
 
-    const jackpotText = this.add.text(270, 120, '🎉 大奖 🎉', {
+    const bigWinText = this.add.text(this.GAME_W / 2, 300, '🎉 ¡GRANDE! 🎉', {
       fontSize: '36px',
+      fontFamily: 'Georgia, serif',
       color: '#ffd700',
-      fontStyle: 'bold',
-      stroke: '#8b4513',
-      strokeThickness: 4
+      stroke: '#8b0000',
+      strokeThickness: 4,
     }).setOrigin(0.5).setScale(0);
 
     this.tweens.add({
-      targets: jackpotText,
-      scale: 1.3,
+      targets: bigWinText,
+      scale: 1.2,
       duration: 400,
       ease: 'Back.easeOut',
       onComplete: () => {
-        this.tweens.add({ targets: jackpotText, scale: 1.1, duration: 200, yoyo: true, repeat: 3 });
-        this.time.delayedCall(2000, () => {
-          this.tweens.add({ targets: jackpotText, alpha: 0, y: 80, duration: 500, onComplete: () => jackpotText.destroy() });
+        this.time.delayedCall(1500, () => {
+          this.tweens.add({
+            targets: bigWinText,
+            alpha: 0,
+            duration: 400,
+            onComplete: () => bigWinText.destroy(),
+          });
         });
-      }
+      },
+    });
+  }
+
+  private showNoWin() {
+    const text = this.add.text(this.GAME_W / 2, 240, '¡Otra vez!', {
+      fontSize: '24px',
+      fontFamily: 'Georgia, serif',
+      color: '#c8d2e8',
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      duration: 800,
+      delay: 500,
+      onComplete: () => text.destroy(),
     });
   }
 }

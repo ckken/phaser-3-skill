@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { SlotGameView } from './SlotGameView';
 
-const BET_OPTIONS = [10, 50, 100];
+const BET_OPTIONS = [10, 25, 50, 100];
 
 export function App() {
   const [balance, setBalance] = useState(1000);
   const [displayBalance, setDisplayBalance] = useState(1000);
-  const [bet, setBet] = useState(20);
+  const [bet, setBet] = useState(25);
   const [lastWin, setLastWin] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [autoLeft, setAutoLeft] = useState(0);
@@ -15,13 +15,13 @@ export function App() {
   const spinRef = useRef<() => boolean>(() => false);
   const balanceAnimRef = useRef<number | null>(null);
 
-  // Phase 3: 余额数字滚动动画
+  // 余额数字滚动动画
   useEffect(() => {
     if (balanceAnimRef.current) cancelAnimationFrame(balanceAnimRef.current);
 
     const start = displayBalance;
     const end = balance;
-    const duration = 600;
+    const duration = 500;
     const startTime = performance.now();
 
     const animate = (now: number) => {
@@ -54,7 +54,7 @@ export function App() {
         setAutoLeft(0);
         setAutoTotal(0);
       }
-    }, 300);
+    }, 400);
 
     return () => clearTimeout(timer);
   }, [autoLeft, spinning]);
@@ -85,36 +85,32 @@ export function App() {
 
   return (
     <div style={styles.container}>
-      {/* Phase 4: 顶部 HUD */}
-      <div style={styles.topHud}>
-        <div style={styles.hudCard}>
-          <span style={styles.hudLabel}>余额</span>
-          <span style={styles.hudValue}>{displayBalance.toLocaleString()}</span>
+      {/* 顶部信息栏 */}
+      <div style={styles.topBar}>
+        <div style={styles.infoCard}>
+          <span style={styles.infoLabel}>CRÉDITO</span>
+          <span style={styles.infoValue}>{displayBalance.toLocaleString()}</span>
         </div>
-        <div style={styles.hudCard}>
-          <span style={styles.hudLabel}>下注</span>
-          <span style={styles.hudValue}>{bet}</span>
+        <div style={styles.infoCard}>
+          <span style={styles.infoLabel}>APUESTA</span>
+          <span style={styles.infoValue}>{bet}</span>
         </div>
-        <div style={{ ...styles.hudCard, ...(lastWin > 0 ? styles.hudCardWin : {}) }}>
-          <span style={styles.hudLabel}>中奖</span>
-          <span style={{ ...styles.hudValue, color: lastWin > 0 ? '#ffd700' : '#fff' }}>
+        <div style={{ ...styles.infoCard, ...(lastWin > 0 ? styles.infoCardWin : {}) }}>
+          <span style={styles.infoLabel}>GANANCIA</span>
+          <span style={{ ...styles.infoValue, color: lastWin > 0 ? '#ffd700' : '#fff' }}>
             {lastWin > 0 ? `+${lastWin}` : '0'}
           </span>
         </div>
       </div>
 
-      {/* 状态栏 */}
-      <div style={styles.statusBar}>
-        <span style={{ color: spinning ? '#6ef2ff' : '#8a9ab0' }}>
-          {spinning ? '🎰 旋转中...' : '⏸ 待机'}
-        </span>
-        {autoLeft > 0 && (
-          <span style={styles.autoStatus}>
-            自动: {autoLeft}/{autoTotal}
-          </span>
-        )}
-      </div>
+      {/* 状态指示 */}
+      {spinning && (
+        <div style={styles.spinningIndicator}>
+          <span style={styles.spinningDot}>●</span> GIRANDO...
+        </div>
+      )}
 
+      {/* 游戏视图 */}
       <SlotGameView
         onBalanceChange={setBalance}
         onWin={setLastWin}
@@ -123,7 +119,7 @@ export function App() {
         registerSpin={(fn) => { spinRef.current = fn; }}
       />
 
-      {/* Phase 3: 下注快捷选择 */}
+      {/* 下注选择器 */}
       <div style={styles.betSelector}>
         {BET_OPTIONS.map((v) => (
           <button
@@ -152,10 +148,11 @@ export function App() {
         </button>
       </div>
 
-      {/* Phase 3: Auto 进度条 */}
+      {/* Auto 进度条 */}
       {autoLeft > 0 && (
         <div style={styles.autoProgressContainer}>
           <div style={{ ...styles.autoProgressBar, width: `${autoProgress}%` }} />
+          <span style={styles.autoProgressText}>{autoLeft}/{autoTotal}</span>
         </div>
       )}
 
@@ -163,10 +160,10 @@ export function App() {
       <div style={styles.bottomControls}>
         <button
           disabled={spinning}
-          onClick={() => setBet((b) => Math.max(10, b - 10))}
-          style={{ ...styles.controlBtn, ...(spinning ? styles.btnDisabled : {}) }}
+          onClick={() => setBet((b) => Math.max(10, b - 5))}
+          style={{ ...styles.sideBtn, ...(spinning ? styles.btnDisabled : {}) }}
         >
-          -
+          −
         </button>
 
         <button
@@ -174,27 +171,23 @@ export function App() {
           onClick={handleSpin}
           style={{
             ...styles.spinBtn,
-            ...(spinning ? styles.spinBtnSpinning : {})
+            ...(spinning ? styles.spinBtnDisabled : {})
           }}
         >
-          {spinning ? (
-            <span style={styles.spinnerIcon}>⟳</span>
-          ) : (
-            '开始'
-          )}
+          {spinning ? '...' : '¡GIRAR!'}
         </button>
 
         <button
           disabled={spinning}
-          onClick={() => setBet((b) => Math.min(100, b + 10))}
-          style={{ ...styles.controlBtn, ...(spinning ? styles.btnDisabled : {}) }}
+          onClick={() => setBet((b) => Math.min(100, b + 5))}
+          style={{ ...styles.sideBtn, ...(spinning ? styles.btnDisabled : {}) }}
         >
           +
         </button>
 
         {autoLeft > 0 ? (
           <button onClick={handleStopAuto} style={styles.stopBtn}>
-            停止
+            PARAR
           </button>
         ) : (
           <button
@@ -202,12 +195,12 @@ export function App() {
             onClick={() => handleAuto(10)}
             style={{ ...styles.autoBtn, ...(spinning ? styles.btnDisabled : {}) }}
           >
-            自动×10
+            AUTO ×10
           </button>
         )}
       </div>
 
-      <div style={styles.version}>v0.4.2-no-flicker</div>
+      <div style={styles.version}>TORO SLOTS v1.0</div>
     </div>
   );
 }
@@ -217,9 +210,10 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'relative',
     width: '100%',
     height: '100%',
-    fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontFamily: "'Georgia', 'Times New Roman', serif",
+    background: 'linear-gradient(180deg, #1a0a0a 0%, #0d0505 100%)',
   },
-  topHud: {
+  topBar: {
     position: 'fixed',
     top: 8,
     left: 8,
@@ -227,52 +221,55 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 10,
     display: 'flex',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
-  hudCard: {
+  infoCard: {
     flex: 1,
-    background: 'linear-gradient(135deg, rgba(30,35,50,0.95) 0%, rgba(20,25,40,0.95) 100%)',
-    borderRadius: 10,
-    padding: '8px 12px',
+    background: 'linear-gradient(180deg, #2d1515 0%, #1a0a0a 100%)',
+    borderRadius: 8,
+    padding: '6px 10px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    border: '1px solid rgba(110,242,255,0.2)',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
+    border: '2px solid #b8860b',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,215,0,0.1)',
   },
-  hudCardWin: {
-    border: '1px solid rgba(255,215,0,0.5)',
-    boxShadow: '0 4px 12px rgba(255,215,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+  infoCardWin: {
+    border: '2px solid #ffd700',
+    boxShadow: '0 4px 12px rgba(255,215,0,0.3), inset 0 1px 0 rgba(255,215,0,0.2)',
   },
-  hudLabel: {
-    fontSize: 10,
-    color: '#8a9ab0',
-    textTransform: 'uppercase',
+  infoLabel: {
+    fontSize: 9,
+    color: '#b8860b',
     letterSpacing: 1,
+    fontWeight: 'bold',
   },
-  hudValue: {
+  infoValue: {
     fontSize: 18,
-    fontWeight: 700,
-    color: '#fff',
+    fontWeight: 'bold',
+    color: '#fff8dc',
     marginTop: 2,
+    textShadow: '0 2px 4px rgba(0,0,0,0.5)',
   },
-  statusBar: {
+  spinningIndicator: {
     position: 'fixed',
-    top: 72,
-    left: 12,
-    right: 12,
+    top: 75,
+    left: '50%',
+    transform: 'translateX(-50%)',
     zIndex: 10,
-    display: 'flex',
-    justifyContent: 'space-between',
+    color: '#ffd700',
     fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 2,
   },
-  autoStatus: {
-    color: '#6ef2ff',
-    fontWeight: 600,
+  spinningDot: {
+    display: 'inline-block',
+    animation: 'pulse 0.5s ease-in-out infinite',
+    color: '#c41e3a',
   },
   betSelector: {
     position: 'fixed',
-    bottom: 100,
+    bottom: 110,
     left: 0,
     right: 0,
     zIndex: 10,
@@ -281,113 +278,124 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 8,
   },
   betBtn: {
-    padding: '6px 16px',
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#c8d2e8',
-    background: 'linear-gradient(180deg, rgba(40,45,60,0.9) 0%, rgba(30,35,50,0.9) 100%)',
-    border: '1px solid rgba(110,242,255,0.15)',
+    padding: '8px 18px',
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff8dc',
+    background: 'linear-gradient(180deg, #3d2020 0%, #2d1515 100%)',
+    border: '2px solid #8b4513',
     borderRadius: 6,
     cursor: 'pointer',
     transition: 'all 0.15s ease',
+    fontFamily: 'inherit',
   },
   betBtnActive: {
-    color: '#fff',
-    background: 'linear-gradient(180deg, rgba(110,242,255,0.3) 0%, rgba(80,200,220,0.2) 100%)',
-    border: '1px solid rgba(110,242,255,0.5)',
-    boxShadow: '0 0 12px rgba(110,242,255,0.3)',
+    color: '#ffd700',
+    background: 'linear-gradient(180deg, #5d3030 0%, #4d2525 100%)',
+    border: '2px solid #ffd700',
+    boxShadow: '0 0 10px rgba(255,215,0,0.4)',
   },
   betBtnMax: {
     color: '#ffd700',
-    border: '1px solid rgba(255,215,0,0.3)',
+    border: '2px solid #cd7f32',
   },
   autoProgressContainer: {
     position: 'fixed',
-    bottom: 92,
-    left: 20,
-    right: 20,
-    height: 3,
-    background: 'rgba(255,255,255,0.1)',
-    borderRadius: 2,
+    bottom: 100,
+    left: 30,
+    right: 30,
+    height: 6,
+    background: 'rgba(139,69,19,0.3)',
+    borderRadius: 3,
     zIndex: 10,
     overflow: 'hidden',
   },
   autoProgressBar: {
     height: '100%',
-    background: 'linear-gradient(90deg, #6ef2ff, #4ecdc4)',
-    borderRadius: 2,
+    background: 'linear-gradient(90deg, #ffd700, #cd7f32)',
+    borderRadius: 3,
     transition: 'width 0.3s ease',
+  },
+  autoProgressText: {
+    position: 'absolute',
+    right: 0,
+    top: -16,
+    fontSize: 10,
+    color: '#b8860b',
   },
   bottomControls: {
     position: 'fixed',
     left: 0,
     right: 0,
-    bottom: 28,
+    bottom: 30,
     zIndex: 10,
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
   },
-  controlBtn: {
-    width: 44,
-    height: 44,
-    fontSize: 20,
-    fontWeight: 700,
-    color: '#c8d2e8',
-    background: 'linear-gradient(180deg, rgba(50,55,70,0.95) 0%, rgba(35,40,55,0.95) 100%)',
-    border: '1px solid rgba(110,242,255,0.2)',
-    borderRadius: 10,
+  sideBtn: {
+    width: 48,
+    height: 48,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff8dc',
+    background: 'linear-gradient(180deg, #3d2020 0%, #2d1515 100%)',
+    border: '2px solid #8b4513',
+    borderRadius: 8,
     cursor: 'pointer',
     transition: 'all 0.15s ease',
-    boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+    boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
+    fontFamily: 'inherit',
   },
   spinBtn: {
-    width: 80,
-    height: 80,
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#fff',
-    background: 'linear-gradient(180deg, #ff6b6b 0%, #ee5a5a 50%, #d94848 100%)',
-    border: '2px solid rgba(255,255,255,0.2)',
+    width: 100,
+    height: 100,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff8dc',
+    background: 'linear-gradient(180deg, #c41e3a 0%, #8b0000 100%)',
+    border: '4px solid #ffd700',
     borderRadius: '50%',
     cursor: 'pointer',
     transition: 'all 0.15s ease',
-    boxShadow: '0 6px 20px rgba(255,107,107,0.4), inset 0 2px 0 rgba(255,255,255,0.2)',
+    boxShadow: '0 6px 20px rgba(196,30,58,0.5), inset 0 2px 0 rgba(255,255,255,0.2)',
+    fontFamily: 'inherit',
+    letterSpacing: 1,
   },
-  spinBtnSpinning: {
-    background: 'linear-gradient(180deg, #666 0%, #555 50%, #444 100%)',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+  spinBtnDisabled: {
+    background: 'linear-gradient(180deg, #4d2525 0%, #3d1515 100%)',
+    border: '4px solid #8b4513',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
     cursor: 'not-allowed',
   },
-  spinnerIcon: {
-    display: 'inline-block',
-    animation: 'spin 1s linear infinite',
-    fontSize: 28,
-  },
   autoBtn: {
-    padding: '12px 16px',
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#6ef2ff',
-    background: 'linear-gradient(180deg, rgba(50,55,70,0.95) 0%, rgba(35,40,55,0.95) 100%)',
-    border: '1px solid rgba(110,242,255,0.3)',
-    borderRadius: 10,
+    padding: '14px 18px',
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#ffd700',
+    background: 'linear-gradient(180deg, #3d2020 0%, #2d1515 100%)',
+    border: '2px solid #b8860b',
+    borderRadius: 8,
     cursor: 'pointer',
     transition: 'all 0.15s ease',
-    boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+    boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
+    fontFamily: 'inherit',
+    letterSpacing: 1,
   },
   stopBtn: {
-    padding: '12px 16px',
-    fontSize: 13,
-    fontWeight: 600,
+    padding: '14px 18px',
+    fontSize: 12,
+    fontWeight: 'bold',
     color: '#ff6b6b',
-    background: 'linear-gradient(180deg, rgba(80,40,40,0.95) 0%, rgba(60,30,30,0.95) 100%)',
-    border: '1px solid rgba(255,107,107,0.4)',
-    borderRadius: 10,
+    background: 'linear-gradient(180deg, #4d2020 0%, #3d1010 100%)',
+    border: '2px solid #c41e3a',
+    borderRadius: 8,
     cursor: 'pointer',
     transition: 'all 0.15s ease',
-    boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+    boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
+    fontFamily: 'inherit',
+    letterSpacing: 1,
   },
   btnDisabled: {
     opacity: 0.5,
@@ -396,19 +404,20 @@ const styles: Record<string, React.CSSProperties> = {
   version: {
     position: 'fixed',
     right: 10,
-    bottom: 4,
+    bottom: 6,
     zIndex: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(184,134,11,0.5)',
     fontSize: 10,
+    letterSpacing: 1,
   },
 };
 
-// 添加 CSS 动画
+// CSS 动画
 const styleSheet = document.createElement('style');
 styleSheet.textContent = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
   }
 `;
 document.head.appendChild(styleSheet);
