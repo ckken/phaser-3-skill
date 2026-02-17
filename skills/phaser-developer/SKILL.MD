@@ -254,6 +254,7 @@ class Reel {
 | `references/camera-audio.md` | 相机控制、特效、音频 |
 | `references/patterns.md` | 平台跳跃、射击、跑酷、消除、状态机 |
 | `references/slot-machine.md` | 老虎机完整实现：滚动、缓动、中奖检测 |
+| `references/platformer-feel.md` | 手感优化：Coyote Time、跳跃缓冲、边缘宽容 |
 
 ## 调试
 
