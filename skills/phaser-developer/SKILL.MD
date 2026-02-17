@@ -258,6 +258,7 @@ class Reel {
 | `references/bundle-optimization.md` | 包体优化：分包、CDN、Tree Shaking |
 | `references/gameplay-enhance.md` | 玩法增强：计分、计时、连击、成就系统 |
 | `references/release-polish.md` | 发布完善：版本号、构建时间戳、更新日志 |
+| `references/version-diff.md` | 版本差异：3.55 → 3.60+ 迁移指南 |
 
 ## 调试
 
