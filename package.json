@@ -1,21 +1,21 @@
 {
   "name": "phaser-3-skill",
-  "module": "index.ts",
-  "type": "module",
   "private": true,
   "workspaces": [
     "packages/*"
   ],
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
   "scripts": {
     "demo:dev": "cd packages/phaser-demo && bun run dev",
     "demo:build": "cd packages/phaser-demo && bun run build",
     "slot:dev": "cd packages/slot-demo && bun run dev",
-    "slot:build": "cd packages/slot-demo && bun run build"
+    "slot:build": "cd packages/slot-demo && bun run build",
+    "slot-new:dev": "cd packages/slot-phaser-new && bun run dev",
+    "slot-new:build": "cd packages/slot-phaser-new && bun run build",
+    "slot-9grid:dev": "cd packages/slot-machine-9grid && bun run dev",
+    "slot-9grid:build": "cd packages/slot-machine-9grid && bun run build"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.2"
   }
 }

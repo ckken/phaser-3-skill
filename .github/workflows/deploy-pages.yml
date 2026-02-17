@@ -27,20 +27,22 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Build demos
+      - name: Build all demos
         run: |
           cd packages/phaser-demo && bun run build
           cd ../slot-demo && bun run build
           cd ../slot-phaser-new && bun run build
+          cd ../slot-machine-9grid && bun run build
 
-      - name: Prepare pages artifact (root + /slot + /slot-phaser-new)
+      - name: Prepare pages artifact
         run: |
           rm -rf .pages-dist
-          mkdir -p .pages-dist/slot .pages-dist/slot-phaser-new
+          mkdir -p .pages-dist/slot .pages-dist/slot-phaser-new .pages-dist/slot-9grid
           cp -R packages/phaser-demo/dist/* .pages-dist/
           cp -R packages/slot-demo/dist/* .pages-dist/slot/
           cp -R packages/slot-phaser-new/dist/* .pages-dist/slot-phaser-new/
-          # SPA fallback: 复制 index.html 为 404.html
+          cp -R packages/slot-machine-9grid/dist/* .pages-dist/slot-9grid/
+          # SPA fallback
           cp .pages-dist/index.html .pages-dist/404.html
 
       - name: Upload artifact
