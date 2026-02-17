@@ -257,6 +257,7 @@ class Reel {
 | `references/platformer-feel.md` | 手感优化：Coyote Time、跳跃缓冲、边缘宽容 |
 | `references/bundle-optimization.md` | 包体优化：分包、CDN、Tree Shaking |
 | `references/gameplay-enhance.md` | 玩法增强：计分、计时、连击、成就系统 |
+| `references/release-polish.md` | 发布完善：版本号、构建时间戳、更新日志 |
 
 ## 调试
 
