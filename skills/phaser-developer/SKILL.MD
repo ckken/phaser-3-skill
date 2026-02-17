@@ -255,6 +255,7 @@ class Reel {
 | `references/patterns.md` | 平台跳跃、射击、跑酷、消除、状态机 |
 | `references/slot-machine.md` | 老虎机完整实现：滚动、缓动、中奖检测 |
 | `references/platformer-feel.md` | 手感优化：Coyote Time、跳跃缓冲、边缘宽容 |
+| `references/bundle-optimization.md` | 包体优化：分包、CDN、Tree Shaking |
 
 ## 调试
 
