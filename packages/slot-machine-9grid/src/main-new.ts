@@ -2,6 +2,7 @@
 import * as Phaser from 'phaser';
 import { SYMBOLS, type SymbolData } from './types';
 import { ReelController } from './ReelController';
+import { calculateWin, formatWinningLines } from './WinCalculator';
 
 const CONFIG = {
   WIDTH: 400,
@@ -50,10 +51,13 @@ class SlotGame extends Phaser.Scene {
     const g = this.add.graphics();
     for (let y = 0; y < CONFIG.HEIGHT; y++) {
       const t = y / CONFIG.HEIGHT;
+      const startColor = Phaser.Display.Color.ValueToColor(0x0d0d1a);
+      const endColor = Phaser.Display.Color.ValueToColor(0x05050f);
       const color = Phaser.Display.Color.Interpolate.ColorWithColor(
-        { r: 13, g: 13, b: 26 },
-        { r: 5, g: 5, b: 15 },
-        100, t * 100
+        startColor,
+        endColor,
+        100, 
+        t * 100
       );
       g.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b));
       g.fillRect(0, y, CONFIG.WIDTH, 1);
@@ -190,13 +194,17 @@ class SlotGame extends Phaser.Scene {
     
     // 计算中奖
     const payline = this.reels.map(reel => reel.getVisibleSymbols());
-    const win = this.calculateWin(payline);
+    const result = calculateWin(payline, this.betting);
     
-    if (win > 0) {
-      this.balance += win;
-      this.winText.text = `+ $${win}`;
+    if (result.winAmount > 0) {
+      this.balance += result.winAmount;
+      this.winText.text = `+ $${result.winAmount}`;
       this.winText.setVisible(true);
       this.animateWin();
+      
+      // 显示中奖线详情
+      const winDetails = formatWinningLines(result.winningLines);
+      console.log('[Game] Winning:', winDetails);
     }
     
     this.updateBalanceText();
@@ -204,6 +212,7 @@ class SlotGame extends Phaser.Scene {
   
   private calculateWin(payline: SymbolData[][]): number {
     console.log('[Calculate win] Payline:', payline);
+    // 此函数已弃用, 实际计算在 onSpinComplete 中使用 WinCalculator
     return 0;
   }
   
@@ -227,16 +236,18 @@ class SlotGame extends Phaser.Scene {
   }
 }
 
-class GameConfig extends Phaser.Types.Core.GameConfig {
+class GameConfig {
+  public config: Phaser.Types.Core.GameConfig;
+  
   constructor() {
-    super({
+    this.config = {
       type: Phaser.AUTO,
       width: CONFIG.WIDTH,
       height: CONFIG.HEIGHT,
       parent: 'game-container',
       backgroundColor: '#0a0a1a',
       scene: SlotGame
-    });
+    };
   }
 }
 

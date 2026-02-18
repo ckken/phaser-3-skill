@@ -187,7 +187,7 @@ class Reel {
         this.phaseTime = 0;
         // 减速开始时，设置最终应该停止的位置
         // 让它停在某个符号的边界上
-        this.stopAtOffset = 0;
+        this.targetStopOffset = 0;
       }
     });
   }
@@ -330,10 +330,13 @@ class SlotScene extends Phaser.Scene {
     const g = this.add.graphics();
     for (let y = 0; y < CONFIG.HEIGHT; y++) {
       const t = y / CONFIG.HEIGHT;
+      const startColor = Phaser.Display.Color.ValueToColor(0x0d0d1a);
+      const endColor = Phaser.Display.Color.ValueToColor(0x05050f);
       const color = Phaser.Display.Color.Interpolate.ColorWithColor(
-        { r: 13, g: 13, b: 26, a: 255 },
-        { r: 5, g: 5, b: 15, a: 255 },
-        100, t * 100
+        startColor,
+        endColor,
+        100, 
+        t * 100
       );
       g.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b));
       g.fillRect(0, y, CONFIG.WIDTH, 1);

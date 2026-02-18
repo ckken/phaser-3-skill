@@ -1,5 +1,5 @@
 // 虚拟渲染器 - 根据位置计算可见符号
-import { SYMBOLS } from './types';
+import { SYMBOLS, SymbolData } from './types';
 
 export interface VirtualReelConfig {
   symbolSize: number;
@@ -62,7 +62,7 @@ export class VirtualRenderer {
    * 计算精确的对齐位置
    * 确保减速结束后符号正好对齐到可视区域
    */
-  calculateAlignedPosition(currentPosition: number, targetSymbols: typeof SYMBOLS[]): {
+  calculateAlignedPosition(currentPosition: number, targetSymbols: SymbolData[]): {
     targetPosition: number;
     startIndex: number;
   } {
