@@ -53,7 +53,8 @@ class Reel {
   private phase: 'idle' | 'accel' | 'spin' | 'decel' = 'idle';
   private phaseTime = 0;
   private targetSymbols: typeof SYMBOLS[number][] = [];
-  private stopAtOffset = 0;  // 记录应该停在哪
+  private decelStartOffset = 0; // 开始减速时的offset
+  private targetStopOffset = 0; // 目标停止位置  // 记录应该停在哪
   
   constructor(scene: Phaser.Scene, x: number, topY: number, maskGraphics: Phaser.GameObjects.Graphics) {
     this.scene = scene;
@@ -130,13 +131,47 @@ class Reel {
   }
   
   private prepareFinalSymbols(): void {
-    // 🎯 减速前确定最终符号序列
-    // 将目标符号插入到可见区域，减速时只移动位置，不更换符号
+    // 🎯 物理减速：计算精确的停止位置
+    // 将目标符号插入到可见区域
     const bufferStart = CONFIG.BUFFER_SYMBOLS;
     
     for (let i = 0; i < CONFIG.VISIBLE_ROWS; i++) {
       this.symbolData[bufferStart + i] = this.targetSymbols[i];
     }
+    
+    // 计算目标停止位置：让第一个可见符号对齐顶部
+    // 当前offset + 需要移动多少像素才能对齐
+    this.decelStartOffset = this.offset;
+    const visibleStartY = this.topY;
+    const currentFirstSymbolY = this.topY - CONFIG.BUFFER_SYMBOLS * CONFIG.SYMBOL_SIZE + this.offset;
+    const deltaY = visibleStartY - currentFirstSymbolY;
+    
+    // 调整到最近的符号边界
+    const symbolsToMove = Math.round(deltaY / CONFIG.SYMBOL_SIZE);
+    this.targetStopOffset = this.offset + symbolsToMove * CONFIG.SYMBOL_SIZE;
+    
+    // 确保在减速范围内能到达
+    const maxDecelDistance = CONFIG.MAX_SPEED * CONFIG.DECEL_TIME / 2; // 三角形面积
+    if (Math.abs(this.targetStopOffset - this.offset) > maxDecelDistance) {
+      // 调整目标位置使其在减速范围内
+      const direction = this.targetStopOffset > this.offset ? 1 : -1;
+      this.targetStopOffset = this.offset + direction * maxDecelDistance;
+    }
+  }
+  
+  private applyFinalPosition(): void {
+    // 🎯 停止后整理符号数据，确保位置正确
+    // 使offset回到0-1个符号高度范围内
+    const symbolsToShift = Math.floor(this.offset / CONFIG.SYMBOL_SIZE);
+    
+    if (symbolsToShift > 0) {
+      for (let i = 0; i < symbolsToShift; i++) {
+        this.symbolData.shift();
+        this.symbolData.push(this.targetSymbols[i % CONFIG.VISIBLE_ROWS] || this.randomSymbol());
+      }
+    }
+    
+    this.offset = this.offset % CONFIG.SYMBOL_SIZE;
   }
   
   spin(targetSymbols: typeof SYMBOLS[number][], delay: number) {
@@ -187,13 +222,18 @@ class Reel {
         const decelT = Math.min(this.phaseTime / CONFIG.DECEL_TIME, 1);
         // 使用更平滑的减速曲线
         const eased = this.easeOutCubic(decelT);
-        this.speed = CONFIG.MAX_SPEED * (1 - eased);
         
-        // 当减速完成时，直接设置到精确位置，无闪烁
+        // 🎯 真正的物理减速：通过插值计算当前位置
+        // 从 decelStartOffset 平滑移动到 targetStopOffset
+        this.offset = this.decelStartOffset + (this.targetStopOffset - this.decelStartOffset) * eased;
+        this.speed = CONFIG.MAX_SPEED * (1 - eased); // 速度用于控制滚动符号
+        
+        // 当减速完成时，正好到达目标位置
         if (decelT >= 1) {
           this.speed = 0;
-          this.offset = 0;
-          // 直接设置到精确位置，无任何动画
+          this.offset = this.targetStopOffset; // 精确对齐
+          // 确保符号数据正确
+          this.applyFinalPosition();
           this.updatePositions();
           this.phase = 'idle';
           return;
@@ -202,23 +242,18 @@ class Reel {
     }
     
     // 更新滚动偏移
-    this.offset += this.speed * dt;
-    
-    // 只在加速和匀速阶段循环符号
     if (this.phase === 'accel' || this.phase === 'spin') {
+      this.offset += this.speed * dt;
+      
+      // 循环符号
       while (this.offset >= CONFIG.SYMBOL_SIZE) {
         this.offset -= CONFIG.SYMBOL_SIZE;
         this.symbolData.shift();
         this.symbolData.push(this.randomSymbol());
       }
     }
+    // decel阶段offset通过插值计算，不在这里更新
     
-    this.updatePositions();
-  }
-  
-  private applyTargetSymbols() {
-    // 目标符号已在减速前设置（prepareFinalSymbols）
-    // 这里仅更新位置，无回弹动画
     this.updatePositions();
   }
   
