@@ -1,0 +1,64 @@
+name: Deploy Stage 5 - TypeScript Build
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'packages/slot-machine-9grid/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'packages/slot-machine-9grid/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd packages/slot-machine-9grid
+          npm ci
+
+      - name: TypeScript type check
+        run: |
+          cd packages/slot-machine-9grid
+          npx tsc --noEmit --skipLibCheck --esModuleInterop
+
+      - name: Build project
+        run: |
+          cd packages/slot-machine-9grid
+          npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./packages/slot-machine-9grid/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Output deployment URL
+        run: |
+          echo "🎰 Deployment URL: ${{ steps.deployment.outputs.page_url }}"
+          echo "📋 Build Status: ${{ job.status }}"
