@@ -80,12 +80,14 @@ class Reel {
   private createSymbol(): Phaser.GameObjects.Container {
     const cont = this.scene.add.container(0, 0);
     
+    // ✅ 只创建一次，缓存图形
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x222244, 1);
     bg.fillRoundedRect(-CONFIG.SYMBOL_SIZE/2 + 4, -CONFIG.SYMBOL_SIZE/2 + 4, 
                         CONFIG.SYMBOL_SIZE - 8, CONFIG.SYMBOL_SIZE - 8, 8);
     cont.add(bg);
     
+    // ✅ 文本只设置一次静态属性
     const text = this.scene.add.text(0, 0, '', {
       fontSize: '42px',
       fontFamily: 'Arial, sans-serif',
@@ -93,6 +95,9 @@ class Reel {
     }).setOrigin(0.5);
     cont.add(text);
     cont.setData('text', text);
+    
+    // ✅ 整个容器只设置一次交互（如果需要）
+    // cont.setInteractive({ useHandCursor: true });
     
     return cont;
   }
@@ -108,11 +113,19 @@ class Reel {
       const sym = this.symbols[i];
       const data = this.symbolData[i];
       
-      sym.setY(startY + i * CONFIG.SYMBOL_SIZE + this.offset);
+      // ✅ 整数像素对齐 - 消除渲染模糊
+      const preciseY = startY + i * CONFIG.SYMBOL_SIZE + this.offset;
+      sym.setY(Math.round(preciseY));
       
       const text = sym.getData('text') as Phaser.GameObjects.Text;
-      text.setText(data.label);
-      text.setColor(Phaser.Display.Color.IntegerToColor(data.color).rgba);
+      // 只在数据变化时更新文本和颜色
+      if (text.text !== data.label) {
+        text.setText(data.label);
+      }
+      const colorStr = Phaser.Display.Color.IntegerToColor(data.color).rgba;
+      if (text.style.color !== colorStr) {
+        text.setColor(colorStr);
+      }
     }
   }
   
@@ -198,10 +211,40 @@ class Reel {
       this.symbolData[bufferStart + i] = this.targetSymbols[i];
     }
     this.updatePositions();
+    
+    // ✅ 触发回弹动画
+    this.playBounceAnimation();
   }
   
   isIdle(): boolean {
     return this.phase === 'idle';
+  }
+  
+  playBounceAnimation(): void {
+    const symbols = this.getVisibleSymbols();
+    symbols.forEach((data, idx) => {
+      const sym = this.symbols[CONFIG.BUFFER_SYMBOLS + idx];
+      
+      // 符号闪烁
+      this.scene.tweens.add({
+        targets: sym,
+        scaleY: 0.8,  // 压扁
+        duration: 100,
+        yoyo: true,
+        ease: 'Quad.easeOut',
+      });
+      
+      // 文本弹跳
+      const text = sym.getData('text') as Phaser.GameObjects.Text;
+      this.scene.tweens.add({
+        targets: text,
+        scaleY: 1.3,
+        duration: 200,
+        yoyo: true,
+        ease: 'Back.easeOut',
+        delay: idx * 50,  // 错峰触发
+      });
+    });
   }
   
   getVisibleSymbols(): typeof SYMBOLS[number][] {
@@ -419,10 +462,18 @@ class SlotScene extends Phaser.Scene {
         col.push(SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
       }
       results.push(col);
-      
-      const delay = CONFIG.MIN_SPIN_TIME + i * CONFIG.STOP_DELAY;
-      this.reels[i].spin(col, delay);
     }
+    
+    // ✅ 错峰停止 - 每列增加延迟，增强节奏感
+    for (let i = 0; i < CONFIG.REEL_COUNT; i++) {
+      // 第1列立即，第2列延迟0.35s，第3列延迟0.7s
+      const delay = i * CONFIG.STOP_DELAY * 2;
+      this.reels[i].spin(results[i], delay);
+    }
+    
+    // 添加音效层次感
+    this.time.delayedCall(350, () => this.playReelSound(1));
+    this.time.delayedCall(700, () => this.playReelSound(2));
     
     // 等待所有轮盘停止
     const checkInterval = this.time.addEvent({
@@ -436,6 +487,11 @@ class SlotScene extends Phaser.Scene {
         }
       },
     });
+  }
+  
+  private playReelSound(reelIndex: number) {
+    // 占位：播放轮盘停止音效
+    console.log(`Reel ${reelIndex + 1} stopped`);
   }
   
   private checkWin(results: typeof SYMBOLS[number][][]) {
