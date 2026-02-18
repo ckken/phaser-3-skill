@@ -129,6 +129,16 @@ class Reel {
     }
   }
   
+  private prepareFinalSymbols(): void {
+    // 🎯 减速前确定最终符号序列
+    // 将目标符号插入到可见区域，减速时只移动位置，不更换符号
+    const bufferStart = CONFIG.BUFFER_SYMBOLS;
+    
+    for (let i = 0; i < CONFIG.VISIBLE_ROWS; i++) {
+      this.symbolData[bufferStart + i] = this.targetSymbols[i];
+    }
+  }
+  
   spin(targetSymbols: typeof SYMBOLS[number][], delay: number) {
     this.targetSymbols = targetSymbols;
     this.phase = 'accel';
@@ -168,6 +178,8 @@ class Reel {
         if (this.phaseTime >= CONFIG.MIN_SPIN_TIME) {
           this.phase = 'decel';
           this.phaseTime = 0;
+          // 🎯 关键：开始减速前，确定最终符号序列
+          this.prepareFinalSymbols();
         }
         break;
         
@@ -177,23 +189,23 @@ class Reel {
         const eased = this.easeOutCubic(decelT);
         this.speed = CONFIG.MAX_SPEED * (1 - eased);
         
-        // 当减速完成时，直接设置到目标位置
+        // 当减速完成时，直接设置到精确位置，无闪烁
         if (decelT >= 1) {
           this.speed = 0;
           this.offset = 0;
-          // 设置最终符号
-          this.applyTargetSymbols();
+          // 直接设置到精确位置，无任何动画
+          this.updatePositions();
           this.phase = 'idle';
           return;
         }
         break;
     }
     
-    // 更新滚动
-    if (this.phase !== 'idle') {
-      this.offset += this.speed * dt;
-      
-      // 循环符号（只在加速和匀速阶段）
+    // 更新滚动偏移
+    this.offset += this.speed * dt;
+    
+    // 只在加速和匀速阶段循环符号
+    if (this.phase === 'accel' || this.phase === 'spin') {
       while (this.offset >= CONFIG.SYMBOL_SIZE) {
         this.offset -= CONFIG.SYMBOL_SIZE;
         this.symbolData.shift();
@@ -205,15 +217,9 @@ class Reel {
   }
   
   private applyTargetSymbols() {
-    // 将目标符号设置到可见区域
-    const bufferStart = CONFIG.BUFFER_SYMBOLS;
-    for (let i = 0; i < CONFIG.VISIBLE_ROWS; i++) {
-      this.symbolData[bufferStart + i] = this.targetSymbols[i];
-    }
+    // 目标符号已在减速前设置（prepareFinalSymbols）
+    // 这里仅更新位置，无回弹动画
     this.updatePositions();
-    
-    // ✅ 触发回弹动画
-    this.playBounceAnimation();
   }
   
   isIdle(): boolean {
