@@ -40,7 +40,7 @@ const THEME = {
 };
 
 // Build version for cache busting
-const BUILD_VERSION = 'v3.1.0-audio';
+const BUILD_VERSION = 'v3.2.0-winlines';
 
 // ============ Web Audio 音效生成器 ============
 class SoundFX {
@@ -626,18 +626,22 @@ class SlotScene extends Phaser.Scene {
   }
 
   private checkWin(results: typeof SYMBOLS[number][][]) {
-    const lines = [
-      [results[0][0], results[1][0], results[2][0]],
-      [results[0][1], results[1][1], results[2][1]],
-      [results[0][2], results[1][2], results[2][2]],
-      [results[0][0], results[1][1], results[2][2]],
-      [results[0][2], results[1][1], results[2][0]],
+    const lineDefinitions = [
+      { rows: [0, 0, 0], name: 'top' },
+      { rows: [1, 1, 1], name: 'mid' },
+      { rows: [2, 2, 2], name: 'bot' },
+      { rows: [0, 1, 2], name: 'diag1' },
+      { rows: [2, 1, 0], name: 'diag2' },
     ];
 
     let totalWin = 0;
-    for (const line of lines) {
+    const winLines: string[] = [];
+
+    for (const lineDef of lineDefinitions) {
+      const line = lineDef.rows.map((row, col) => results[col][row]);
       if (line[0].id === line[1].id && line[1].id === line[2].id) {
         totalWin += this.bet * line[0].multiplier;
+        winLines.push(lineDef.name);
       }
     }
 
@@ -645,9 +649,70 @@ class SlotScene extends Phaser.Scene {
       this.balance += totalWin;
       this.balanceText.setText(`$${this.balance}`);
       this.showWin(totalWin);
+      this.drawWinLines(winLines);
       sfx.win();
     } else {
       this.showMessage('🎲 再试一次!');
+    }
+  }
+
+  private drawWinLines(lineNames: string[]) {
+    const areaWidth = CONFIG.REEL_COUNT * CONFIG.SYMBOL_SIZE + (CONFIG.REEL_COUNT - 1) * CONFIG.REEL_GAP;
+    const areaX = (CONFIG.WIDTH - areaWidth) / 2;
+    const areaY = 130;
+    const halfSym = CONFIG.SYMBOL_SIZE / 2;
+
+    const lineColors: Record<string, number> = {
+      top: 0xff3333, mid: 0x33ff33, bot: 0x3333ff,
+      diag1: 0xffaa00, diag2: 0xff33ff,
+    };
+
+    for (const name of lineNames) {
+      const g = this.add.graphics();
+      const color = lineColors[name] || 0xffd700;
+      g.lineStyle(4, color, 0.8);
+
+      const rowMap: Record<string, number[]> = {
+        top: [0, 0, 0], mid: [1, 1, 1], bot: [2, 2, 2],
+        diag1: [0, 1, 2], diag2: [2, 1, 0],
+      };
+      const rows = rowMap[name];
+
+      const points = rows.map((row, col) => ({
+        x: areaX + halfSym + col * (CONFIG.SYMBOL_SIZE + CONFIG.REEL_GAP),
+        y: areaY + halfSym + row * CONFIG.SYMBOL_SIZE,
+      }));
+
+      g.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        g.lineTo(points[i].x, points[i].y);
+      }
+      g.strokePath();
+
+      // Glow dots at each symbol
+      for (const p of points) {
+        g.fillStyle(color, 0.6);
+        g.fillCircle(p.x, p.y, 6);
+      }
+
+      // Animate: flash then fade
+      g.setAlpha(0);
+      this.tweens.add({
+        targets: g,
+        alpha: 1,
+        duration: 200,
+        yoyo: true,
+        repeat: 3,
+        hold: 150,
+        onComplete: () => {
+          this.tweens.add({
+            targets: g,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => g.destroy(),
+          });
+        },
+      });
     }
   }
 
