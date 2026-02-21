@@ -40,7 +40,7 @@ const THEME = {
 };
 
 // Build version for cache busting
-const BUILD_VERSION = 'v3.3.0-polish';
+const BUILD_VERSION = 'v3.4.1-fix';
 
 // ============ Web Audio 音效生成器 ============
 class SoundFX {
@@ -205,6 +205,12 @@ class Reel {
       if (text.text !== data.label) {
         text.setText(data.label);
         text.setColor(Phaser.Display.Color.IntegerToColor(data.color).rgba);
+        // Auto-size: shrink BAR and other long labels
+        if (data.label.length > 2) {
+          text.setFontSize(32);
+        } else {
+          text.setFontSize(52);
+        }
       }
     }
   }
@@ -321,6 +327,8 @@ class Reel {
         this.state = ReelState.IDLE;
         this.playBounceStop();
         sfx.reelStop();
+        // Screen shake on stop
+        this.scene.cameras.main.shake(80, 0.003);
         return;
       }
     }
@@ -657,7 +665,7 @@ class SlotScene extends Phaser.Scene {
 
     if (totalWin > 0) {
       this.balance += totalWin;
-      this.balanceText.setText(`$${this.balance}`);
+      this.animateBalance(this.balance - totalWin, this.balance);
       this.showWin(totalWin);
       this.drawWinLines(winLines);
       sfx.win();
@@ -810,6 +818,30 @@ class SlotScene extends Phaser.Scene {
       duration: 1000,
       delay: 500,
       onComplete: () => msg.destroy(),
+    });
+  }
+
+  private animateBalance(from: number, to: number) {
+    const obj = { val: from };
+    this.tweens.add({
+      targets: obj,
+      val: to,
+      duration: 600,
+      ease: 'Quad.easeOut',
+      onUpdate: () => {
+        this.balanceText.setText(`$${Math.round(obj.val)}`);
+      },
+      onComplete: () => {
+        this.balanceText.setText(`$${to}`);
+        // Pulse effect
+        this.tweens.add({
+          targets: this.balanceText,
+          scale: 1.3,
+          duration: 150,
+          yoyo: true,
+          ease: 'Back.easeOut',
+        });
+      },
     });
   }
 }
