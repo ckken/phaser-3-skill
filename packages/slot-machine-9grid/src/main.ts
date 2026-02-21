@@ -11,11 +11,11 @@ const CONFIG = {
   
   // 滚动配置
   BUFFER_SYMBOLS: 5, // 增加缓冲区，确保循环无缝
-  SPIN_SPEED: 2500, // px/s
-  ACCEL_DURATION: 300, // ms
-  MIN_SPIN_DURATION: 1500, // ms
-  DECEL_DURATION: 800, // ms - 更长的减速时间，更平滑
-  STOP_STAGGER: 400, // ms - 每个轮盘停止的间隔
+  SPIN_SPEED: 1200, // px/s - 降低速度，更容易看清
+  ACCEL_DURATION: 500, // ms - 更长的加速时间
+  MIN_SPIN_DURATION: 2500, // ms - 延长最小旋转时间
+  DECEL_DURATION: 1500, // ms - 更长的减速时间，更明显的减速效果
+  STOP_STAGGER: 500, // ms - 每个轮盘停止的间隔
 };
 
 const SYMBOLS = [
@@ -185,7 +185,7 @@ class Reel {
       targets: this,
       scrollY: accelDistance,
       duration: CONFIG.ACCEL_DURATION,
-      ease: 'Cubic.easeOut',
+      ease: 'Quad.easeIn', // 更平缓的加速
       onUpdate: () => {
         this.recycleSymbols();
         this.updateSymbolPositions();
@@ -246,7 +246,7 @@ class Reel {
       targets: this,
       scrollY: targetScrollY,
       duration: CONFIG.DECEL_DURATION,
-      ease: 'Expo.easeOut', // 使用指数缓动，更真实的物理感
+      ease: 'Cubic.easeOut', // 三次方缓动，更明显的减速效果
       onUpdate: () => {
         this.recycleSymbols();
         this.updateSymbolPositions();
