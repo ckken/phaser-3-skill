@@ -10,12 +10,12 @@ const CONFIG = {
   REEL_GAP: 10,
   
   // 滚动配置
-  BUFFER_SYMBOLS: 3,
-  MAX_SPEED: 2000,
-  ACCEL_TIME: 0.2,
-  MIN_SPIN_TIME: 0.6,
-  STOP_DELAY: 0.3,
-  DECEL_TIME: 0.4,
+  BUFFER_SYMBOLS: 5, // 增加缓冲区，确保循环无缝
+  SPIN_SPEED: 2500, // px/s
+  ACCEL_DURATION: 300, // ms
+  MIN_SPIN_DURATION: 1500, // ms
+  DECEL_DURATION: 800, // ms - 更长的减速时间，更平滑
+  STOP_STAGGER: 400, // ms - 每个轮盘停止的间隔
 };
 
 const SYMBOLS = [
@@ -48,13 +48,12 @@ class Reel {
   private topY: number;
   
   // 滚动状态
-  private offset = 0;
-  private speed = 0;
-  private phase: 'idle' | 'accel' | 'spin' | 'decel' = 'idle';
-  private phaseTime = 0;
+  private scrollY = 0; // 当前滚动偏移（浮点数，保持精度）
+  private isSpinning = false;
   private targetSymbols: typeof SYMBOLS[number][] = [];
-  private decelStartOffset = 0; // 开始减速时的offset
-  private targetStopOffset = 0; // 目标停止位置  // 记录应该停在哪
+  
+  // Tween 引用
+  private spinTween: Phaser.Tweens.Tween | null = null;
   
   constructor(scene: Phaser.Scene, x: number, topY: number, maskGraphics: Phaser.GameObjects.Graphics) {
     this.scene = scene;
@@ -63,17 +62,18 @@ class Reel {
     
     this.container = scene.add.container(x, 0);
     
+    // 创建符号池：可见区域 + 上下缓冲区
     const totalSymbols = CONFIG.VISIBLE_ROWS + CONFIG.BUFFER_SYMBOLS * 2;
     for (let i = 0; i < totalSymbols; i++) {
       const sym = this.createSymbol();
-      sym.setY(topY - CONFIG.BUFFER_SYMBOLS * CONFIG.SYMBOL_SIZE + i * CONFIG.SYMBOL_SIZE);
       this.symbols.push(sym);
       this.symbolData.push(this.randomSymbol());
       this.container.add(sym);
     }
     
-    this.updatePositions();
+    this.updateSymbolPositions();
     
+    // 应用遮罩
     const mask = maskGraphics.createGeometryMask();
     this.container.setMask(mask);
   }
@@ -81,14 +81,19 @@ class Reel {
   private createSymbol(): Phaser.GameObjects.Container {
     const cont = this.scene.add.container(0, 0);
     
-    // ✅ 只创建一次，缓存图形
+    // 背景
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x222244, 1);
-    bg.fillRoundedRect(-CONFIG.SYMBOL_SIZE/2 + 4, -CONFIG.SYMBOL_SIZE/2 + 4, 
-                        CONFIG.SYMBOL_SIZE - 8, CONFIG.SYMBOL_SIZE - 8, 8);
+    bg.fillRoundedRect(
+      -CONFIG.SYMBOL_SIZE / 2 + 4,
+      -CONFIG.SYMBOL_SIZE / 2 + 4,
+      CONFIG.SYMBOL_SIZE - 8,
+      CONFIG.SYMBOL_SIZE - 8,
+      8
+    );
     cont.add(bg);
     
-    // ✅ 文本只设置一次静态属性
+    // 文本
     const text = this.scene.add.text(0, 0, '', {
       fontSize: '42px',
       fontFamily: 'Arial, sans-serif',
@@ -97,9 +102,6 @@ class Reel {
     cont.add(text);
     cont.setData('text', text);
     
-    // ✅ 整个容器只设置一次交互（如果需要）
-    // cont.setInteractive({ useHandCursor: true });
-    
     return cont;
   }
   
@@ -107,198 +109,213 @@ class Reel {
     return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
   }
   
-  private updatePositions() {
+  /**
+   * 更新所有符号的位置和显示内容
+   * 关键：使用浮点数精度，不四舍五入
+   */
+  private updateSymbolPositions() {
     const startY = this.topY - CONFIG.BUFFER_SYMBOLS * CONFIG.SYMBOL_SIZE;
     
     for (let i = 0; i < this.symbols.length; i++) {
       const sym = this.symbols[i];
       const data = this.symbolData[i];
       
-      // ✅ 整数像素对齐 - 消除渲染模糊
-      const preciseY = startY + i * CONFIG.SYMBOL_SIZE + this.offset;
-      sym.setY(Math.round(preciseY));
+      // 🎯 关键：保持浮点数精度，让 Phaser 的渲染器处理亚像素
+      const y = startY + i * CONFIG.SYMBOL_SIZE + this.scrollY;
+      sym.setY(y);
       
+      // 更新文本内容和颜色
       const text = sym.getData('text') as Phaser.GameObjects.Text;
-      // 只在数据变化时更新文本和颜色
       if (text.text !== data.label) {
         text.setText(data.label);
-      }
-      const colorStr = Phaser.Display.Color.IntegerToColor(data.color).rgba;
-      if (text.style.color !== colorStr) {
-        text.setColor(colorStr);
+        text.setColor(Phaser.Display.Color.IntegerToColor(data.color).rgba);
       }
     }
   }
   
-  private prepareFinalSymbols(): void {
-    // 🎯 物理减速：计算精确的停止位置
-    // 将目标符号插入到可见区域
-    const bufferStart = CONFIG.BUFFER_SYMBOLS;
-    
+  /**
+   * 循环符号：当符号移出底部时，移到顶部
+   * 这是实现无缝滚动的关键
+   */
+  private recycleSymbols() {
+    // 当滚动超过一个符号高度时，循环
+    while (this.scrollY >= CONFIG.SYMBOL_SIZE) {
+      this.scrollY -= CONFIG.SYMBOL_SIZE;
+      
+      // 将第一个符号数据移到最后
+      const first = this.symbolData.shift()!;
+      this.symbolData.push(this.randomSymbol());
+    }
+  }
+  
+  /**
+   * 准备最终结果：在减速前将目标符号插入到符号池中
+   */
+  private prepareFinalSymbols() {
+    // 将目标符号放到缓冲区后的可见位置
+    const startIdx = CONFIG.BUFFER_SYMBOLS;
     for (let i = 0; i < CONFIG.VISIBLE_ROWS; i++) {
-      this.symbolData[bufferStart + i] = this.targetSymbols[i];
-    }
-    
-    // 计算目标停止位置：让第一个可见符号对齐顶部
-    // 当前offset + 需要移动多少像素才能对齐
-    this.decelStartOffset = this.offset;
-    const visibleStartY = this.topY;
-    const currentFirstSymbolY = this.topY - CONFIG.BUFFER_SYMBOLS * CONFIG.SYMBOL_SIZE + this.offset;
-    const deltaY = visibleStartY - currentFirstSymbolY;
-    
-    // 调整到最近的符号边界
-    const symbolsToMove = Math.round(deltaY / CONFIG.SYMBOL_SIZE);
-    this.targetStopOffset = this.offset + symbolsToMove * CONFIG.SYMBOL_SIZE;
-    
-    // 确保在减速范围内能到达
-    const maxDecelDistance = CONFIG.MAX_SPEED * CONFIG.DECEL_TIME / 2; // 三角形面积
-    if (Math.abs(this.targetStopOffset - this.offset) > maxDecelDistance) {
-      // 调整目标位置使其在减速范围内
-      const direction = this.targetStopOffset > this.offset ? 1 : -1;
-      this.targetStopOffset = this.offset + direction * maxDecelDistance;
+      this.symbolData[startIdx + i] = this.targetSymbols[i];
     }
   }
   
-  private applyFinalPosition(): void {
-    // 🎯 停止后整理符号数据，确保位置正确
-    // 使offset回到0-1个符号高度范围内
-    const symbolsToShift = Math.floor(this.offset / CONFIG.SYMBOL_SIZE);
+  /**
+   * 开始旋转
+   * @param targetSymbols 最终要显示的符号（从上到下）
+   * @param stopDelay 延迟多久后开始减速（秒）
+   */
+  spin(targetSymbols: typeof SYMBOLS[number][], stopDelay: number) {
+    if (this.isSpinning) return;
     
-    if (symbolsToShift > 0) {
-      for (let i = 0; i < symbolsToShift; i++) {
-        this.symbolData.shift();
-        this.symbolData.push(this.targetSymbols[i % CONFIG.VISIBLE_ROWS] || this.randomSymbol());
-      }
-    }
-    
-    this.offset = this.offset % CONFIG.SYMBOL_SIZE;
-  }
-  
-  spin(targetSymbols: typeof SYMBOLS[number][], delay: number) {
     this.targetSymbols = targetSymbols;
-    this.phase = 'accel';
-    this.phaseTime = 0;
-    this.speed = 0;
-    this.offset = 0;
+    this.isSpinning = true;
+    this.scrollY = 0;
     
-    this.scene.time.delayedCall(delay * 1000, () => {
-      if (this.phase === 'spin') {
-        this.phase = 'decel';
-        this.phaseTime = 0;
-        // 减速开始时，设置最终应该停止的位置
-        // 让它停在某个符号的边界上
-        this.targetStopOffset = 0;
+    // 停止之前的 Tween
+    if (this.spinTween) {
+      this.spinTween.stop();
+      this.spinTween = null;
+    }
+    
+    // 🎯 阶段1：加速阶段
+    // 使用 Tween 从 0 平滑加速到最大速度
+    const accelDistance = (CONFIG.SPIN_SPEED / 2) * (CONFIG.ACCEL_DURATION / 1000);
+    
+    this.spinTween = this.scene.tweens.add({
+      targets: this,
+      scrollY: accelDistance,
+      duration: CONFIG.ACCEL_DURATION,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => {
+        this.recycleSymbols();
+        this.updateSymbolPositions();
+      },
+      onComplete: () => {
+        // 🎯 阶段2：匀速旋转阶段
+        this.startConstantSpin(stopDelay);
       }
     });
   }
   
-  update(delta: number) {
-    if (this.phase === 'idle') return;
+  /**
+   * 匀速旋转阶段
+   */
+  private startConstantSpin(stopDelay: number) {
+    // 计算匀速旋转需要移动的距离
+    const spinDuration = CONFIG.MIN_SPIN_DURATION + stopDelay * 1000;
+    const spinDistance = CONFIG.SPIN_SPEED * (spinDuration / 1000);
     
-    const dt = delta / 1000;
-    this.phaseTime += dt;
+    const startScrollY = this.scrollY;
     
-    switch (this.phase) {
-      case 'accel':
-        const accelT = Math.min(this.phaseTime / CONFIG.ACCEL_TIME, 1);
-        this.speed = CONFIG.MAX_SPEED * this.easeOutQuad(accelT);
-        if (accelT >= 1) {
-          this.phase = 'spin';
-          this.phaseTime = 0;
-        }
-        break;
-        
-      case 'spin':
-        this.speed = CONFIG.MAX_SPEED;
-        if (this.phaseTime >= CONFIG.MIN_SPIN_TIME) {
-          this.phase = 'decel';
-          this.phaseTime = 0;
-          // 🎯 关键：开始减速前，确定最终符号序列
-          this.prepareFinalSymbols();
-        }
-        break;
-        
-      case 'decel':
-        const decelT = Math.min(this.phaseTime / CONFIG.DECEL_TIME, 1);
-        // 使用更平滑的减速曲线
-        const eased = this.easeOutCubic(decelT);
-        
-        // 🎯 真正的物理减速：通过插值计算当前位置
-        // 从 decelStartOffset 平滑移动到 targetStopOffset
-        this.offset = this.decelStartOffset + (this.targetStopOffset - this.decelStartOffset) * eased;
-        this.speed = CONFIG.MAX_SPEED * (1 - eased); // 速度用于控制滚动符号
-        
-        // 当减速完成时，正好到达目标位置
-        if (decelT >= 1) {
-          this.speed = 0;
-          this.offset = this.targetStopOffset; // 精确对齐
-          // 确保符号数据正确
-          this.applyFinalPosition();
-          this.updatePositions();
-          this.phase = 'idle';
-          return;
-        }
-        break;
-    }
-    
-    // 更新滚动偏移
-    if (this.phase === 'accel' || this.phase === 'spin') {
-      this.offset += this.speed * dt;
-      
-      // 循环符号
-      while (this.offset >= CONFIG.SYMBOL_SIZE) {
-        this.offset -= CONFIG.SYMBOL_SIZE;
-        this.symbolData.shift();
-        this.symbolData.push(this.randomSymbol());
+    this.spinTween = this.scene.tweens.add({
+      targets: this,
+      scrollY: startScrollY + spinDistance,
+      duration: spinDuration,
+      ease: 'Linear',
+      onUpdate: () => {
+        this.recycleSymbols();
+        this.updateSymbolPositions();
+      },
+      onComplete: () => {
+        // 🎯 阶段3：减速阶段
+        this.startDeceleration();
       }
-    }
-    // decel阶段offset通过插值计算，不在这里更新
+    });
+  }
+  
+  /**
+   * 减速阶段：平滑停止到目标符号
+   */
+  private startDeceleration() {
+    // 在减速前，将最终符号插入到符号池
+    this.prepareFinalSymbols();
     
-    this.updatePositions();
+    // 计算需要滚动多少才能让第一个目标符号对齐到顶部
+    // 当前 scrollY 可能在任意位置，我们需要滚动到下一个符号边界
+    const currentOffset = this.scrollY % CONFIG.SYMBOL_SIZE;
+    const distanceToNextBoundary = CONFIG.SYMBOL_SIZE - currentOffset;
+    
+    // 额外滚动几个符号，确保目标符号进入可见区域
+    const extraSymbols = CONFIG.BUFFER_SYMBOLS;
+    const decelDistance = distanceToNextBoundary + extraSymbols * CONFIG.SYMBOL_SIZE;
+    
+    const startScrollY = this.scrollY;
+    const targetScrollY = startScrollY + decelDistance;
+    
+    this.spinTween = this.scene.tweens.add({
+      targets: this,
+      scrollY: targetScrollY,
+      duration: CONFIG.DECEL_DURATION,
+      ease: 'Expo.easeOut', // 使用指数缓动，更真实的物理感
+      onUpdate: () => {
+        this.recycleSymbols();
+        this.updateSymbolPositions();
+      },
+      onComplete: () => {
+        // 🎯 最终对齐：确保精确停在符号边界
+        this.finalizeStop();
+      }
+    });
   }
   
-  isIdle(): boolean {
-    return this.phase === 'idle';
+  /**
+   * 最终停止：微调到精确位置
+   */
+  private finalizeStop() {
+    // 将 scrollY 对齐到最近的符号边界
+    const remainder = this.scrollY % CONFIG.SYMBOL_SIZE;
+    if (remainder > 0) {
+      this.scrollY -= remainder;
+    }
+    
+    this.updateSymbolPositions();
+    this.isSpinning = false;
+    this.spinTween = null;
+    
+    // 播放停止动画
+    this.playStopAnimation();
   }
   
-  playBounceAnimation(): void {
-    const symbols = this.getVisibleSymbols();
-    symbols.forEach((data, idx) => {
-      const sym = this.symbols[CONFIG.BUFFER_SYMBOLS + idx];
-      
-      // 符号闪烁
+  /**
+   * 停止时的弹跳动画
+   */
+  private playStopAnimation() {
+    const visibleSymbols = this.symbols.slice(
+      CONFIG.BUFFER_SYMBOLS,
+      CONFIG.BUFFER_SYMBOLS + CONFIG.VISIBLE_ROWS
+    );
+    
+    visibleSymbols.forEach((sym, idx) => {
+      // 轻微的弹跳效果
       this.scene.tweens.add({
         targets: sym,
-        scaleY: 0.8,  // 压扁
-        duration: 100,
+        scaleY: 0.95,
+        duration: 80,
         yoyo: true,
-        ease: 'Quad.easeOut',
+        ease: 'Quad.easeInOut',
+        delay: idx * 40,
       });
       
-      // 文本弹跳
+      // 文本放大效果
       const text = sym.getData('text') as Phaser.GameObjects.Text;
       this.scene.tweens.add({
         targets: text,
-        scaleY: 1.3,
-        duration: 200,
+        scale: 1.15,
+        duration: 150,
         yoyo: true,
         ease: 'Back.easeOut',
-        delay: idx * 50,  // 错峰触发
+        delay: idx * 40,
       });
     });
+  }
+  
+  isIdle(): boolean {
+    return !this.isSpinning;
   }
   
   getVisibleSymbols(): typeof SYMBOLS[number][] {
     const start = CONFIG.BUFFER_SYMBOLS;
     return this.symbolData.slice(start, start + CONFIG.VISIBLE_ROWS);
-  }
-  
-  private easeOutQuad(t: number): number {
-    return t * (2 - t);
-  }
-  
-  private easeOutCubic(t: number): number {
-    return 1 - Math.pow(1 - t, 3);
   }
 }
 
@@ -378,17 +395,20 @@ class SlotScene extends Phaser.Scene {
     this.add.triangle(areaX - 20, centerY, 0, -10, 0, 10, 12, 0, THEME.gold);
     this.add.triangle(areaX + areaWidth + 20, centerY, 0, -10, 0, 10, -12, 0, THEME.gold);
     
+    // 创建遮罩
     const maskG = this.add.graphics();
     maskG.fillStyle(0xffffff);
     maskG.fillRect(areaX - 5, areaY - 5, areaWidth + 10, areaHeight + 10);
     maskG.setVisible(false);
     
+    // 创建轮盘
     for (let i = 0; i < CONFIG.REEL_COUNT; i++) {
       const reelX = areaX + CONFIG.SYMBOL_SIZE / 2 + i * (CONFIG.SYMBOL_SIZE + CONFIG.REEL_GAP);
       const reel = new Reel(this, reelX, areaY + CONFIG.SYMBOL_SIZE / 2, maskG);
       this.reels.push(reel);
     }
     
+    // 分隔线
     const sepG = this.add.graphics();
     sepG.lineStyle(2, THEME.goldDark, 0.3);
     for (let i = 1; i < CONFIG.REEL_COUNT; i++) {
@@ -499,6 +519,7 @@ class SlotScene extends Phaser.Scene {
     this.balanceText.setText(`$${this.balance}`);
     this.winText.setAlpha(0);
     
+    // 生成随机结果
     const results: typeof SYMBOLS[number][][] = [];
     for (let i = 0; i < CONFIG.REEL_COUNT; i++) {
       const col: typeof SYMBOLS[number][] = [];
@@ -508,43 +529,30 @@ class SlotScene extends Phaser.Scene {
       results.push(col);
     }
     
-    // ✅ 错峰停止 - 每列增加延迟，增强节奏感
+    // 🎯 错峰停止：每个轮盘延迟不同时间
     for (let i = 0; i < CONFIG.REEL_COUNT; i++) {
-      // 第1列立即，第2列延迟0.35s，第3列延迟0.7s
-      const delay = i * CONFIG.STOP_DELAY * 2;
-      this.reels[i].spin(results[i], delay);
+      const stopDelay = i * (CONFIG.STOP_STAGGER / 1000);
+      this.reels[i].spin(results[i], stopDelay);
     }
     
-    // 添加音效层次感
-    this.time.delayedCall(350, () => this.playReelSound(1));
-    this.time.delayedCall(700, () => this.playReelSound(2));
-    
     // 等待所有轮盘停止
-    const checkInterval = this.time.addEvent({
-      delay: 50,
-      loop: true,
-      callback: () => {
-        if (this.reels.every(r => r.isIdle())) {
-          checkInterval.remove();
-          this.checkWin(results);
-          this.spinning = false;
-        }
-      },
+    const totalDuration = CONFIG.ACCEL_DURATION + CONFIG.MIN_SPIN_DURATION + 
+                          (CONFIG.REEL_COUNT - 1) * CONFIG.STOP_STAGGER + 
+                          CONFIG.DECEL_DURATION;
+    
+    this.time.delayedCall(totalDuration + 200, () => {
+      this.checkWin(results);
+      this.spinning = false;
     });
-  }
-  
-  private playReelSound(reelIndex: number) {
-    // 占位：播放轮盘停止音效
-    console.log(`Reel ${reelIndex + 1} stopped`);
   }
   
   private checkWin(results: typeof SYMBOLS[number][][]) {
     const lines = [
-      [results[0][0], results[1][0], results[2][0]],
-      [results[0][1], results[1][1], results[2][1]],
-      [results[0][2], results[1][2], results[2][2]],
-      [results[0][0], results[1][1], results[2][2]],
-      [results[0][2], results[1][1], results[2][0]],
+      [results[0][0], results[1][0], results[2][0]], // 上
+      [results[0][1], results[1][1], results[2][1]], // 中
+      [results[0][2], results[1][2], results[2][2]], // 下
+      [results[0][0], results[1][1], results[2][2]], // 对角线 ↘
+      [results[0][2], results[1][1], results[2][0]], // 对角线 ↗
     ];
     
     let totalWin = 0;
@@ -589,12 +597,6 @@ class SlotScene extends Phaser.Scene {
       delay: 500,
       onComplete: () => msg.destroy(),
     });
-  }
-  
-  update(_time: number, delta: number) {
-    for (const reel of this.reels) {
-      reel.update(delta);
-    }
   }
 }
 
