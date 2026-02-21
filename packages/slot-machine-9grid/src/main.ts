@@ -40,7 +40,73 @@ const THEME = {
 };
 
 // Build version for cache busting
-const BUILD_VERSION = 'v3.0.0-enhanced';
+const BUILD_VERSION = 'v3.1.0-audio';
+
+// ============ Web Audio 音效生成器 ============
+class SoundFX {
+  private ctx: AudioContext | null = null;
+
+  private getCtx(): AudioContext {
+    if (!this.ctx) this.ctx = new AudioContext();
+    return this.ctx;
+  }
+
+  spin() {
+    try {
+      const ctx = this.getCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.2);
+    } catch (_) { /* silent fail */ }
+  }
+
+  reelStop() {
+    try {
+      const ctx = this.getCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(300, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    } catch (_) { /* silent fail */ }
+  }
+
+  win() {
+    try {
+      const ctx = this.getCtx();
+      const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const t = ctx.currentTime + i * 0.12;
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+        osc.start(t);
+        osc.stop(t + 0.3);
+      });
+    } catch (_) { /* silent fail */ }
+  }
+}
+
+const sfx = new SoundFX();
 
 // ============ 滚动状态枚举 ============
 enum ReelState {
@@ -254,6 +320,7 @@ class Reel {
         this.updateSymbolPositions();
         this.state = ReelState.IDLE;
         this.playBounceStop();
+        sfx.reelStop();
         return;
       }
     }
@@ -538,6 +605,7 @@ class SlotScene extends Phaser.Scene {
     this.balance -= this.bet;
     this.balanceText.setText(`$${this.balance}`);
     this.winText.setAlpha(0);
+    sfx.spin();
 
     // Generate random results
     const results: typeof SYMBOLS[number][][] = [];
@@ -577,6 +645,7 @@ class SlotScene extends Phaser.Scene {
       this.balance += totalWin;
       this.balanceText.setText(`$${this.balance}`);
       this.showWin(totalWin);
+      sfx.win();
     } else {
       this.showMessage('🎲 再试一次!');
     }
