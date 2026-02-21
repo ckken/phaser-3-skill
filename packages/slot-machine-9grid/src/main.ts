@@ -13,9 +13,11 @@ const CONFIG = {
   BUFFER_SYMBOLS: 5,
   MAX_SPEED: 1800,       // px/s - 最大滚动速度
   ACCEL: 3000,           // px/s² - 加速度
-  DECEL: 1200,           // px/s² - 减速度（比加速慢，更有拉扯感）
+  DECEL: 800,            // px/s² - 减速度（更慢，拉扯感更强）
   MIN_SPIN_TIME: 1200,   // ms - 最小匀速旋转时间
   STOP_STAGGER: 500,     // ms - 每个轮盘停止的间隔
+  BOUNCE_OVERSHOOT: 18,  // px - 过冲距离
+  BOUNCE_DURATION: 400,  // ms - 回弹动画时长
 };
 
 const SYMBOLS = [
@@ -38,7 +40,7 @@ const THEME = {
 };
 
 // Build version for cache busting
-const BUILD_VERSION = 'v2.0.0-physics';
+const BUILD_VERSION = 'v2.1.0-smooth-stop';
 
 // ============ 滚动状态枚举 ============
 enum ReelState {
@@ -217,19 +219,23 @@ class Reel {
       }
 
       case ReelState.DECELERATING: {
-        // Decrease velocity with deceleration
-        this.velocity -= CONFIG.DECEL * dtSec;
-
-        // Don't let velocity go below a minimum crawl speed until we're close
+        // Smooth deceleration using exponential decay
+        // Instead of linear decel, velocity drops faster at high speed and slower near stop
         const remaining = this.landingTarget - this.scrollY;
+        
         if (remaining <= 0) {
-          // Overshot or arrived - snap to target
+          // Arrived at target - start bounce
           this.scrollY = this.landingTarget;
           this.velocity = 0;
           this.state = ReelState.LANDING;
-        } else if (this.velocity <= 0) {
-          // Ran out of speed before reaching target - crawl to finish
-          this.velocity = Math.min(200, remaining / dtSec);
+        } else {
+          // Exponential slowdown: speed proportional to remaining distance
+          // This creates a natural "easing out" feel
+          const targetVelocity = Math.max(60, remaining * 3.5);
+          // Blend current velocity toward target (smooth transition)
+          this.velocity = this.velocity * 0.92 + targetVelocity * 0.08;
+          // Clamp to avoid overshooting
+          if (this.velocity > CONFIG.MAX_SPEED) this.velocity = CONFIG.MAX_SPEED;
         }
         break;
       }
@@ -243,7 +249,7 @@ class Reel {
         this.recycleSymbols();
         this.updateSymbolPositions();
         this.state = ReelState.IDLE;
-        this.playStopAnimation();
+        this.playBounceStop();
         return;
       }
     }
@@ -254,30 +260,43 @@ class Reel {
     this.updateSymbolPositions();
   }
 
-  private playStopAnimation() {
+  /**
+   * Bounce stop effect - overshoot then spring back
+   */
+  private playBounceStop() {
     const visibleSymbols = this.symbols.slice(
       CONFIG.BUFFER_SYMBOLS,
       CONFIG.BUFFER_SYMBOLS + CONFIG.VISIBLE_ROWS
     );
 
+    // Overshoot: move all visible symbols down, then bounce back up
     visibleSymbols.forEach((sym, idx) => {
+      const originalY = sym.y;
       this.scene.tweens.add({
         targets: sym,
-        scaleY: 0.93,
-        duration: 100,
-        yoyo: true,
-        ease: 'Quad.easeInOut',
-        delay: idx * 50,
+        y: originalY + CONFIG.BOUNCE_OVERSHOOT,
+        duration: CONFIG.BOUNCE_DURATION * 0.3,
+        ease: 'Quad.easeOut',
+        delay: idx * 30,
+        onComplete: () => {
+          this.scene.tweens.add({
+            targets: sym,
+            y: originalY,
+            duration: CONFIG.BOUNCE_DURATION * 0.7,
+            ease: 'Bounce.easeOut',
+          });
+        }
       });
 
+      // Scale pulse on stop
       const text = sym.getData('text') as Phaser.GameObjects.Text;
       this.scene.tweens.add({
         targets: text,
-        scale: 1.2,
-        duration: 180,
+        scale: 1.15,
+        duration: 200,
         yoyo: true,
         ease: 'Back.easeOut',
-        delay: idx * 50,
+        delay: idx * 30 + CONFIG.BOUNCE_DURATION * 0.3,
       });
     });
   }
