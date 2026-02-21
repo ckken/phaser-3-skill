@@ -39,10 +39,14 @@
   <div id="game-container"></div>
   <div id="version"></div>
   <script>
-    // 从 URL 参数获取版本号或生成时间戳
-    const params = new URLSearchParams(window.location.search);
-    const version = params.get('v') || new Date().toISOString().slice(0, 19);
-    document.getElementById('version').textContent = `v: ${version}`;
+    // Version will be set by the game's BUILD_VERSION constant
+    // Fallback to timestamp if game hasn't loaded yet
+    setTimeout(() => {
+      const el = document.getElementById('version');
+      if (el && !el.dataset.set) {
+        el.textContent = 'loading...';
+      }
+    }, 100);
   </script>
 </body>
 </html>
