@@ -33,20 +33,16 @@
       border-radius: 4px;
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-r0WtB2Yu.js"></script>
+  <script type="module" crossorigin src="./assets/index-CPhQ2Lek.js"></script>
 </head>
 <body>
   <div id="game-container"></div>
   <div id="version"></div>
   <script>
-    // Version will be set by the game's BUILD_VERSION constant
-    // Fallback to timestamp if game hasn't loaded yet
-    setTimeout(() => {
-      const el = document.getElementById('version');
-      if (el && !el.dataset.set) {
-        el.textContent = 'loading...';
-      }
-    }, 100);
+    // 从 URL 参数获取版本号或生成时间戳
+    // Version set by BUILD_VERSION
+    
+    
   </script>
 </body>
 </html>
