@@ -40,7 +40,7 @@ const THEME = {
 };
 
 // Build version for cache busting
-const BUILD_VERSION = 'v3.2.0-winlines';
+const BUILD_VERSION = 'v3.3.0-polish';
 
 // ============ Web Audio 音效生成器 ============
 class SoundFX {
@@ -393,6 +393,8 @@ class SlotScene extends Phaser.Scene {
   private balanceText!: Phaser.GameObjects.Text;
   private betText!: Phaser.GameObjects.Text;
   private winText!: Phaser.GameObjects.Text;
+  private spinCount = 0;
+  private spinCountText!: Phaser.GameObjects.Text;
 
   constructor() {
     super('SlotScene');
@@ -522,6 +524,12 @@ class SlotScene extends Phaser.Scene {
       strokeThickness: 4,
     }).setOrigin(0.5).setAlpha(0);
 
+    // Spin count display
+    this.spinCountText = this.add.text(CONFIG.WIDTH / 2, 570, '', {
+      fontSize: '14px',
+      color: '#555',
+    }).setOrigin(0.5);
+
     this.createSpinButton();
   }
 
@@ -605,6 +613,8 @@ class SlotScene extends Phaser.Scene {
     this.balance -= this.bet;
     this.balanceText.setText(`$${this.balance}`);
     this.winText.setAlpha(0);
+    this.spinCount++;
+    this.spinCountText.setText(`SPINS: ${this.spinCount}`);
     sfx.spin();
 
     // Generate random results
