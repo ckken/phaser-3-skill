@@ -40,7 +40,7 @@ const THEME = {
 };
 
 // Build version for cache busting
-const BUILD_VERSION = 'v2.1.0-smooth-stop';
+const BUILD_VERSION = 'v3.0.0-enhanced';
 
 // ============ 滚动状态枚举 ============
 enum ReelState {
@@ -95,24 +95,24 @@ class Reel {
   private createSymbol(): Phaser.GameObjects.Container {
     const cont = this.scene.add.container(0, 0);
 
+    // Gradient background with glow
     const bg = this.scene.add.graphics();
-    bg.fillStyle(0x222244, 1);
-    bg.fillRoundedRect(
-      -CONFIG.SYMBOL_SIZE / 2 + 4,
-      -CONFIG.SYMBOL_SIZE / 2 + 4,
-      CONFIG.SYMBOL_SIZE - 8,
-      CONFIG.SYMBOL_SIZE - 8,
-      8
-    );
+    const s = CONFIG.SYMBOL_SIZE;
+    bg.fillStyle(0x1a1a3e, 1);
+    bg.fillRoundedRect(-s / 2 + 4, -s / 2 + 4, s - 8, s - 8, 10);
+    // Inner highlight
+    bg.fillStyle(0x2a2a5e, 0.5);
+    bg.fillRoundedRect(-s / 2 + 8, -s / 2 + 8, s - 16, (s - 16) / 2, { tl: 8, tr: 8, bl: 0, br: 0 });
     cont.add(bg);
 
     const text = this.scene.add.text(0, 0, '', {
-      fontSize: '42px',
+      fontSize: '52px',
       fontFamily: 'Arial, sans-serif',
       fontStyle: 'bold',
     }).setOrigin(0.5);
     cont.add(text);
     cont.setData('text', text);
+    cont.setData('bg', bg);
 
     return cont;
   }
@@ -123,6 +123,9 @@ class Reel {
 
   private updateSymbolPositions() {
     const startY = this.topY - CONFIG.BUFFER_SYMBOLS * CONFIG.SYMBOL_SIZE;
+    // Speed-based blur: reduce alpha when spinning fast
+    const speedRatio = this.velocity / CONFIG.MAX_SPEED;
+    const symbolAlpha = this.state === ReelState.IDLE ? 1 : Math.max(0.4, 1 - speedRatio * 0.6);
 
     for (let i = 0; i < this.symbols.length; i++) {
       const sym = this.symbols[i];
@@ -130,6 +133,7 @@ class Reel {
 
       const y = startY + i * CONFIG.SYMBOL_SIZE + this.scrollY;
       sym.setY(y);
+      sym.setAlpha(symbolAlpha);
 
       const text = sym.getData('text') as Phaser.GameObjects.Text;
       if (text.text !== data.label) {
@@ -491,18 +495,29 @@ class SlotScene extends Phaser.Scene {
     bg.lineStyle(4, THEME.gold);
     bg.strokeRoundedRect(-70, -30, 140, 60, 12);
 
+    // Shine effect on button
+    const shine = this.add.graphics();
+    shine.fillStyle(0xffffff, 0.15);
+    shine.fillRoundedRect(-66, -26, 132, 25, { tl: 10, tr: 10, bl: 0, br: 0 });
+
     const text = this.add.text(0, 0, '🎰 SPIN', {
       fontSize: '26px',
       color: '#ffd700',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    btn.add([bg, text]);
+    btn.add([bg, shine, text]);
     btn.setSize(140, 60);
     btn.setInteractive({ useHandCursor: true });
 
-    btn.on('pointerdown', () => this.handleSpin());
-    btn.on('pointerover', () => btn.setScale(1.05));
+    btn.on('pointerdown', () => {
+      btn.setScale(0.95);
+      this.handleSpin();
+    });
+    btn.on('pointerup', () => btn.setScale(1));
+    btn.on('pointerover', () => {
+      if (!this.spinning) btn.setScale(1.05);
+    });
     btn.on('pointerout', () => btn.setScale(1));
   }
 
@@ -576,6 +591,66 @@ class SlotScene extends Phaser.Scene {
       scale: 1,
       duration: 400,
       ease: 'Back.easeOut',
+    });
+
+    // Gold coin particle effect
+    this.spawnWinParticles();
+
+    // Flash the reel area border
+    this.flashReelBorder();
+  }
+
+  private spawnWinParticles() {
+    const colors = [0xffd700, 0xffaa00, 0xffdd33, 0xffffff];
+    for (let i = 0; i < 20; i++) {
+      const x = Phaser.Math.Between(60, CONFIG.WIDTH - 60);
+      const y = Phaser.Math.Between(130, 400);
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const size = Phaser.Math.Between(3, 8);
+
+      const particle = this.add.graphics();
+      particle.fillStyle(color, 1);
+      particle.fillCircle(0, 0, size);
+      particle.setPosition(x, y);
+      particle.setAlpha(1);
+
+      this.tweens.add({
+        targets: particle,
+        y: y - Phaser.Math.Between(80, 200),
+        x: x + Phaser.Math.Between(-60, 60),
+        alpha: 0,
+        scale: 0.3,
+        duration: Phaser.Math.Between(600, 1200),
+        delay: Phaser.Math.Between(0, 300),
+        ease: 'Quad.easeOut',
+        onComplete: () => particle.destroy(),
+      });
+    }
+  }
+
+  private reelBorderGraphics?: Phaser.GameObjects.Graphics;
+
+  private flashReelBorder() {
+    if (!this.reelBorderGraphics) return;
+    
+    // Create a flash overlay
+    const areaWidth = CONFIG.REEL_COUNT * CONFIG.SYMBOL_SIZE + (CONFIG.REEL_COUNT - 1) * CONFIG.REEL_GAP;
+    const areaHeight = CONFIG.VISIBLE_ROWS * CONFIG.SYMBOL_SIZE;
+    const areaX = (CONFIG.WIDTH - areaWidth) / 2;
+    const areaY = 130;
+
+    const flash = this.add.graphics();
+    flash.lineStyle(6, 0xffd700, 1);
+    flash.strokeRoundedRect(areaX - 15, areaY - 15, areaWidth + 30, areaHeight + 30, 12);
+    flash.setAlpha(1);
+
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 300,
+      yoyo: true,
+      repeat: 2,
+      onComplete: () => flash.destroy(),
     });
   }
 
