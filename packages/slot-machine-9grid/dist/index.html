@@ -40,6 +40,9 @@
   <div id="version"></div>
   <script>
     // 从 URL 参数获取版本号或生成时间戳
+    const params = new URLSearchParams(window.location.search);
+    const version = params.get('v') || new Date().toISOString().slice(0, 19);
+    document.getElementById('version').textContent = `v: ${version}`;
   </script>
 </body>
 </html>
