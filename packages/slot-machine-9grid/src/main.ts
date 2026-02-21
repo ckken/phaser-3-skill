@@ -142,9 +142,9 @@ class Reel {
     while (this.scrollY >= CONFIG.SYMBOL_SIZE) {
       this.scrollY -= CONFIG.SYMBOL_SIZE;
       
-      // 将第一个符号数据移到最后
+      // 🎯 修复：将顶部符号移到底部，保持符号连续性
       const first = this.symbolData.shift()!;
-      this.symbolData.push(this.randomSymbol());
+      this.symbolData.push(first); // 复用符号，不生成新的
     }
   }
   
@@ -178,8 +178,8 @@ class Reel {
     }
     
     // 🎯 阶段1：加速阶段
-    // 使用 Tween 从 0 平滑加速到最大速度
-    const accelDistance = (CONFIG.SPIN_SPEED / 2) * (CONFIG.ACCEL_DURATION / 1000);
+    // 简化：使用固定距离，避免复杂的积分计算
+    const accelDistance = CONFIG.SYMBOL_SIZE * 3; // 固定滚动 3 个符号的距离
     
     this.spinTween = this.scene.tweens.add({
       targets: this,
@@ -207,12 +207,20 @@ class Reel {
     
     const startScrollY = this.scrollY;
     
+    // 🎯 提前准备最终符号：在匀速阶段快结束时插入
+    // 确保目标符号在减速前已经在符号池中，避免可见区域突nst prepareTime = Math.max(500, CONFIG.DECEL_DURATION * 0.3);
+    
     this.spinTween = this.scene.tweens.add({
       targets: this,
       scrollY: startScrollY + spinDistance,
       duration: spinDuration,
       ease: 'Linear',
-      onUpdate: () => {
+      onUpdate: (tween) => {
+        // 在接近结束时准备最终符号
+        if (tween.progress > 0.7 && this.targetSymbols.length > 0) {
+          this.prepareFinalSymbols();
+          this.targetSymbols = []; // 标记已准备，避免重复
+        }
         this.recycleSymbols();
         this.updateSymbolPositions();
       },
@@ -227,8 +235,7 @@ class Reel {
    * 减速阶段：平滑停止到目标符号
    */
   private startDeceleration() {
-    // 在减速前，将最终符号插入到符号池
-    this.prepareFinalSymbols();
+    // 🎯 移除：prepareFinalSymbols() 已在匀速阶段完成
     
     // 计算需要滚动多少才能让第一个目标符号对齐到顶部
     // 当前 scrollY 可能在任意位置，我们需要滚动到下一个符号边界
